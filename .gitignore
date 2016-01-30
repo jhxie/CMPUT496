@@ -33,4 +33,6 @@
 
 # Rope directory
 .ropeproject
+
+# Python compiled bytecode
 *.pyc

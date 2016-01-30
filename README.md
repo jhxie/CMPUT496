@@ -1,27 +1,34 @@
 # CMPUT 496
 Shared Repository of Course Material for CMPUT 496.
 
-## [I] Network Performance Analysis using Mininet
+## Network Performance Analysis using Mininet
 Please remember to have the **mininet** installed first, to plot the performance
-graph, **matplotlib** is needed as well.  
+and network topology graph , **graphviz** and **matplotlib** are needed as well.  
 If you are on a Debian-based linux machine (ubuntu for example), type the
 following to install the dependency:
 ```bash
-sudo apt-get install python-matplotlib
+sudo apt-get install graphviz mininet python-matplotlib
 ```
 By default the report is generated under */tmp/* directory and named
-**iperf\_server_report**, feel free to move it else where since the next
+**IperfServerReport**, feel free to move it elsewhere since the next
 time the script is run it would be over-written.
 
-To generate the report, type
+To generate the performance test report only, type
 ```bash
-sudo python performance_analysis/SingleSwitchTopo.py
+sudo python PerformanceAnalysis/perfTest.py -t
 ```
 
-To plot the performance graph (remember to have matplotlib installed), type
+To plot the performance graph only (remember to have matplotlib installed), type
 ```bash
-sudo python performance_analysis/plotPerfResult.py
+sudo python PerformanceAnalysis/perfTest.py -p
 ```
-For now the data is **hard-coded** within the *plotPerfResult.py* script, but
-Jiahui plans to add parsing functionality of generated report to it as soon as
-possible.
+
+To perform the above 2 actions in sequence, type
+```bash
+sudo python PerformanceAnalysis/perfTest.py -a
+```
+
+To plot the network topology graph (remember to have graphviz installed), type
+```bash
+vimdot PerformanceAnalysis/SingleSwitchTopo.dot
+```
