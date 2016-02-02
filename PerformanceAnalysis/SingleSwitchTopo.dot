@@ -2,6 +2,6 @@ graph G {
 	Switch1 [shape=box];
 	Host1 [shape=ellipse];
 	Host2 [shape=ellipse];
-	Host1 -- Switch [label="1Gbps"];
-	Switch -- Host2 [label="1Gbps"];
+	Host1 -- Switch1 [label="1Gbps"];
+	Switch1 -- Host2 [label="1Gbps"];
 }

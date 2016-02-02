@@ -51,8 +51,7 @@ def perfTest():
 
     print("!! Final iperf Report from Server Side !!")
     with open("/tmp/IperfServerReport") as report:
-        for line in report:
-            print(line)
+        print(report.read())
 
 
 def perfPlotResult():
