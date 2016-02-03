@@ -9,8 +9,9 @@ following to install the dependency:
 ```bash
 sudo apt-get install graphviz mininet python-matplotlib
 ```
-By default the report is generated under */tmp/* directory and named
-**IperfServerReport**, feel free to move it elsewhere since the next
+By default all 3 reports are generated under */tmp/* directory and named
+**IperfClientFileSizeReport**, **IperfClientLatencyReport**, and
+**IperfClientLossReport**, feel free to move it elsewhere since the next
 time the script is run it would be over-written.
 
 To generate the performance test report only, type
