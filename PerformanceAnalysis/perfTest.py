@@ -14,17 +14,25 @@ from mininet.log import setLogLevel
 from SingleSwitchTopo import SingleSwitchTopo
 
 
-reportNames = ["IperfClientFileSizeReport",
-               "IperfClientLatencyReport",
-               "IperfClientLossReport"]
+# Quoted verbatim from the mininet/net.py under 'iperf' method:
+# "
+# note: send() is buffered, so client rate can be much higher than
+# the actual transmission rate; on an unloaded system, server
+# rate should be much closer to the actual receive rate
+# "
+reportNames = ["IperfServerFileSizeReport",
+               "IperfServerLatencyReport",
+               "IperfServerLossReport"]
 
 
-def perfTestFileSize(rangeMin=1, rangeMax=11):
+def perfTestFileSize(rangeMin=1, rangeMax=11, useDD=False):
     """
     Create network and run performance test using file size as a parameter
     (i.e. no message loss or latency) with 1 switch and 2 hosts topology.
-    The 2 optional parameters stand for the lower and upper bound exponent
-    of file size with 2 as the base.
+    The 3 optional parameters stand for the lower and upper bound exponent
+    of file size with 2 as the base, along with the option to use the data
+    description program to read random data from 'urandom' device, write to
+    a file, then pass the file to 'iperf' client.
     Example
     perfTestFileSize(1,11) would lead to file size range from 2MB up to 1024MB.
     """
@@ -51,21 +59,31 @@ def perfTestFileSize(rangeMin=1, rangeMax=11):
     # We choose to run 'iperf' as a command instead in order to pass
     # custom command line flags to it
     # net.iperf(hosts=(h1, h2), l4Type="TCP")
-    h1.cmd("iperf -f m -s > /dev/null 2>&1 &")
+    h1.cmd("iperf -f m -s > /tmp/IperfServerFileSizeReport &")
 
     # File to be transferred up to 2 ^ 10
     for mb in range(rangeMin, rangeMax):
         print("File Size -------- [{} MB]".format(str(2 ** mb)))
-        h2.cmd("dd if=/dev/zero of={}M bs=1M count={}"
-               .format(str(2 ** mb), str(2 ** mb)))
-        h2.cmd("iperf -f m -c {} -F {}M  >> /tmp/IperfClientFileSizeReport"
-               .format(h1.IP(), str(2 ** mb)))
-        h2.cmd("rm -f {}M".format(str(2 ** mb)))
+        # To avoid "accidental" compression by some of the application layer
+        # protocols, 'urandom' is used here rather than the 'zero' device
+        # to achieve better 'fidelity'.
+        # Note that the 'fullblock' argument for iflag parameter is required
+        # when dd is invoked using 'urandom' device; otherwise dd may not
+        # read enough data to write the output file of proper size
+        if False == useDD:
+            h2.cmd("iperf -f m -c {} -n {}M  > /dev/null 2>&1"
+                   .format(h1.IP(), str(2 ** mb)))
+        else:
+            h2.cmd("dd if=/dev/urandom of={}M bs={}M count=1 iflag=fullblock"
+                   .format(str(2 ** mb), str(2 ** mb)))
+            h2.cmd("iperf -f m -c {} -F {}M  > /dev/null 2>&1"
+                   .format(h1.IP(), str(2 ** mb)))
+            h2.cmd("rm -f {}M".format(str(2 ** mb)))
 
     h1.cmd("kill %")
     h2.cmd("kill %")
     net.stop()
-    print("!! Final iperf Report on File Size from Client Side !!")
+    print("!! Final iperf Report on File Size from Server Side !!")
 
 
 def perfTestLatency(rangeMin=1, rangeMax=182, rangeStep=20):
@@ -88,7 +106,7 @@ def perfTestLatency(rangeMin=1, rangeMax=182, rangeStep=20):
     # Also, how to change the delay of established link is unknown to the
     # author so network topology is set up and tear down repeatedly
     # which may not be an elegant or efficient way of implementing it
-    # The actual sequence is like [1, 21, 41, ... 141, 161] where n = 9
+    # The actual sequence is like [1, 21, 41, ... 141, 161, 181] where n = 10
     for delay in range(rangeMin, rangeMax, rangeStep):
         SingleSwitchTopo.setBuildOption("delay", delay)
         topo = SingleSwitchTopo(n=2)
@@ -103,18 +121,17 @@ def perfTestLatency(rangeMin=1, rangeMax=182, rangeStep=20):
               .format(h1.IP(), h2.IP()))
         # since both hosts would be tear down at each iteration
         # we have to be careful and remember to use 'append' shell redirection
-        h1.cmd("iperf -f m -s > /dev/null 2>&1 &")
+        h1.cmd("iperf -f m -s >> /tmp/IperfServerLatencyReport &")
         print("Latency -------- [{} ms]".format(str(delay)))
-        h2.cmd("iperf -f m -c {} >> /tmp/IperfClientLatencyReport"
-               .format(h1.IP()))
+        h2.cmd("iperf -f m -c {} > /dev/null 2>&1".format(h1.IP()))
         h2.cmd("kill %")
         h1.cmd("kill %")
         net.stop()
 
-    print("!! Final iperf Report on Latency from Client Side !!")
+    print("!! Final iperf Report on Latency from Server Side !!")
 
 
-def perfTestLoss(rangeMin=1, rangeMax=6):
+def perfTestLoss(rangeMin=0, rangeMax=5):
     """
     Create network and run performance test using message loss as a parameter
     (i.e. no variation in file size or latency, fix transfer time period as 10
@@ -141,15 +158,14 @@ def perfTestLoss(rangeMin=1, rangeMax=6):
         h1, h2 = net.getNodeByName("h1", "h2")
         print("!! Testing bandwidth between h1 ({}) and h2 ({}) !!"
               .format(h1.IP(), h2.IP()))
-        h1.cmd("iperf -f m -s > /dev/null 2>&1 &")
+        h1.cmd("iperf -f m -s >> /tmp/IperfServerLossReport &")
         print("Loss Rate -------- [{} %]".format(str(loss_rate)))
-        h2.cmd("iperf -f m -c {} >> /tmp/IperfClientLossReport"
-               .format(h1.IP()))
+        h2.cmd("iperf -f m -c {} > /dev/null 2>&1".format(h1.IP()))
         h2.cmd("kill %")
         h1.cmd("kill %")
         net.stop()
 
-    print("!! Final iperf Report on Loss Rate from Client Side !!")
+    print("!! Final iperf Report on Loss Rate from Server Side !!")
 
 
 def perfTestAllMetrics():
@@ -181,11 +197,11 @@ def perfParseResult():
                 # expression returns an iterable of True/False values
                 if all(keyword in line for keyword in ("MBytes", "Mbits/sec")):
                     measuredBandwidth = float(line.split(" ")[-2])
-                    if "IperfClientFileSizeReport" == reportName:
+                    if "IperfServerFileSizeReport" == reportName:
                         fileSizeBandwidthList.append(measuredBandwidth)
-                    elif "IperfClientLatencyReport" == reportName:
+                    elif "IperfServerLatencyReport" == reportName:
                         latencyBandwidthList.append(measuredBandwidth)
-                    elif "IperfClientLossReport" == reportName:
+                    elif "IperfServerLossReport" == reportName:
                         lossBandwidthList.append(measuredBandwidth)
     return fileSizeBandwidthList, latencyBandwidthList, lossBandwidthList
 
@@ -213,7 +229,7 @@ def perfPlotResult():
     axisArray[1].set_ylabel("Bandwidth (Mbps)")
     axisArray[1].grid(True)
 
-    axisArray[2].plot([i for i in range(1, 6)], lossBandwidth, "g^-")
+    axisArray[2].plot([i for i in range(0, 5)], lossBandwidth, "g^-")
     axisArray[2].axis([0, 11, 0, 2 ** 10])
     axisArray[2].set_xlabel("Loss Rate (%)")
     axisArray[2].set_ylabel("Bandwidth (Mbps)")
