@@ -4,7 +4,7 @@ clean:
 	-rm -f SingleSwitchTopo.png
 
 SingleSwitchTopo.png:
-	dot -Tpng SingleSwitchTopo.dot -o $@
+	circo -Tpng SingleSwitchTopo.dot -o $@
 
 .PHONY: all clean
 .IGNORE:
