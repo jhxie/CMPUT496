@@ -1,7 +1,7 @@
 # Performance Analysis using Mininet and Iperf
 The analysis is performed using 3 distinct metrics under a simplified case of
 **linear** network topology with 1 switch and 2 hosts:  
-![topo](./SingleSwitchTopo.png)
+![topo](./SingleSwitchTopo.png)  
 The numbers assigned to the switch and 2 hosts correspond to the default names
 given by mininet, which are actually named "h1", "s1", and "h2".
 The bandwidth for both links are set to the maximum possible 1Gbps for mininet
