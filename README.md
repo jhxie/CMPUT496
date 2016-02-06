@@ -29,7 +29,7 @@ To perform the above 2 actions in sequence, type
 sudo python PerformanceAnalysis/perfTest.py -a
 ```
 
-To plot the network topology graph (remember to have graphviz installed), type
+To render the network topology graph (remember to have graphviz installed), type
 ```bash
 vimdot PerformanceAnalysis/SingleSwitchTopo.dot
 ```

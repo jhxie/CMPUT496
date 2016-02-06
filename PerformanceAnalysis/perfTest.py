@@ -1,8 +1,14 @@
 #!/usr/bin/env python
 
+"""
+This script comprises of 3 tests that use Mininet/Iperf to measure the
+performance of a virtual network with 1 switch and 2 hosts attached.
+"""
+
 from __future__ import print_function  # use python3 print function instead
 
 import matplotlib.pyplot as plt
+import math
 import os
 import sys
 
@@ -14,9 +20,16 @@ from mininet.log import setLogLevel
 from SingleSwitchTopo import SingleSwitchTopo
 
 
-reportNames = ["IperfClientFileSizeReport",
-               "IperfClientLatencyReport",
-               "IperfClientLossReport"]
+# ---------------------------- GLOBAL CONSTANTS -------------------------------
+# Imitate enum of python3
+FILESIZE    =  0
+LATENCY     =  1
+LOSS        =  2
+
+REPORTNAMES = {0: "IperfClientFileSizeReport",
+               1: "IperfClientLatencyReport",
+               2: "IperfClientLossReport"}
+# ---------------------------- GLOBAL CONSTANTS -------------------------------
 
 
 def perfTestFileSize(rangeMin=1, rangeMax=11, useDD=True):
@@ -38,6 +51,7 @@ def perfTestFileSize(rangeMin=1, rangeMax=11, useDD=True):
         if not isinstance(argument, int) or 0 > argument:
             raise ValueError("argument must be non-negative integers")
 
+    os.system("cd /tmp/ && rm -f " + REPORTNAMES[FILESIZE])
     print("!! Performing Network Performance Test Using File Size !!")
     topo = SingleSwitchTopo(n=2)
     net = Mininet(topo, link=TCLink)
@@ -81,7 +95,17 @@ def perfTestFileSize(rangeMin=1, rangeMax=11, useDD=True):
     h1.cmd("kill %")
     h2.cmd("kill %")
     net.stop()
+
     print("!! Final iperf Report on File Size from Client Side !!")
+    fileSizeBandwidthList = []
+    with open("/tmp/" + REPORTNAMES[FILESIZE], "r") as report:
+        for line in report:
+            print(line)
+            if all(keyword in line for keyword in ("MBytes", "Mbits/sec")):
+                measuredBandwidth = float(line.split(" ")[-2])
+                fileSizeBandwidthList.append(measuredBandwidth)
+
+    return fileSizeBandwidthList
 
 
 def perfTestLatency(rangeMin=1, rangeMax=182, rangeStep=20):
@@ -96,6 +120,7 @@ def perfTestLatency(rangeMin=1, rangeMax=182, rangeStep=20):
         if not isinstance(argument, int) or 0 > argument:
             raise ValueError("argument must be non-negative integers")
 
+    os.system("cd /tmp/ && rm -f " + REPORTNAMES[LATENCY])
     print("!! Performing Network Performance Test Using Latency !!")
     # From mininet's documentation as well as in-source comment it is not clear
     # how to set the RTT directly, so delay is used here.
@@ -128,6 +153,15 @@ def perfTestLatency(rangeMin=1, rangeMax=182, rangeStep=20):
         net.stop()
 
     print("!! Final iperf Report on Latency from Client Side !!")
+    latencyBandwidthList = []
+    with open("/tmp/" + REPORTNAMES[LATENCY], "r") as report:
+        for line in report:
+            print(line)
+            if all(keyword in line for keyword in ("MBytes", "Mbits/sec")):
+                measuredBandwidth = float(line.split(" ")[-2])
+                latencyBandwidthList.append(measuredBandwidth)
+
+    return latencyBandwidthList
 
 
 def perfTestLoss(rangeMin=0, rangeMax=5):
@@ -141,6 +175,7 @@ def perfTestLoss(rangeMin=0, rangeMax=5):
         if not isinstance(argument, int) or 0 > argument:
             raise ValueError("argument must be non-negative integers")
 
+    os.system("cd /tmp/ && rm -f " + REPORTNAMES[LOSS])
     print("!! Performing Network Performance Test Using Message Loss Rate !!")
     # in mininet the loss rate can only be expressed in decimal,
     # no fractions are allowed; i.e. 0.1% data loss rate is not possible
@@ -179,74 +214,122 @@ def perfTestLoss(rangeMin=0, rangeMax=5):
         net.stop()
 
     print("!! Final iperf Report on Loss Rate from Client Side !!")
+    lossBandwidthList = []
+    with open("/tmp/" + REPORTNAMES[LOSS], "r") as report:
+        for line in report:
+            print(line)
+            if all(keyword in line for keyword in ("MBytes", "Mbits/sec")):
+                measuredBandwidth = float(line.split(" ")[-2])
+                lossBandwidthList.append(measuredBandwidth)
+
+    return lossBandwidthList
 
 
-def perfTestAllMetrics():
+def perfGenResult(testFuncList=[perfTestFileSize,
+                                perfTestLatency,
+                                perfTestLoss],
+                  testRuns=10):
     """
     Clean all the past generated iperf reports and run all tests.
     Remember to execute the script with proper permission to make the 'rm'
     command actually work.
+    Then parse all 3 generated report file and return the result bandwidth in 3
+    different lists; it assumes all the reports already exist.
+    Structure of Returned List
+    [
+        [
+            [sum of bandwidth for each point of testFuncList[0]],
+            [average of bandwidth for each point of testFuncList[0]],
+            [standard deviation of bandwidth for each point of testFuncList[0]]
+        ],
+        [
+            [sum of bandwidth for each point of testFuncList[1]],
+            [average of bandwidth for each point of testFuncList[1]],
+            [standard deviation of bandwidth for each point of testFuncList[1]]
+        ],
+        ...
+    ]
     """
-    os.system("cd /tmp/ && rm -f " + " ".join(reportNames))
-    perfTestFileSize()
-    perfTestLatency()
-    perfTestLoss()
+
+    if not testFuncList:
+        raise ValueError("testFuncList must not be empty or none")
+
+    if not isinstance(testRuns, int) or 0 > testRuns:
+            raise ValueError("testRuns must be non-negative integers")
+
+    resultList = []
+    for _ in range(len(testFuncList)):
+        resultList.append([])
+
+    # Iterate through all the functions
+    for index, testFunc in enumerate(testFuncList):
+        # sumList accumulates the sum of values in each record
+        # a record is a list of measured bandwidth in one test run
+        sumList = testFunc()
+        # accuList is a list of records for test runs;
+        # there would be n lists within accuList if n = number of test runs
+        accuList = []
+        accuList.append(sumList)
+        # reduce the rest to a single sum for each value in every record
+        for _ in range(testRuns - 1):
+            tmpList = testFunc()
+            accuList.append(tmpList)
+            sumList = [x + y for x, y in zip(sumList, tmpList)]
+
+        avgList = [x / testRuns for x in sumList]
+        stdDevList = []
+
+        for currentVal in range(len(accuList[0])):
+            stdDevSum = 0
+            for record in accuList:
+                stdDevSum += (record[currentVal] - avgList[currentVal]) ** 2
+            stdDevList.append(math.sqrt(stdDevSum / (testRuns - 1)))
+
+        resultList[index].append(sumList)
+        resultList[index].append(avgList)
+        resultList[index].append(stdDevList)
+
+    return resultList
 
 
-def perfParseResult():
-    """
-    Parse all 3 generated report file and return the result bandwidth in 3
-    different lists.
-    """
-    fileSizeBandwidthList = []
-    latencyBandwidthList = []
-    lossBandwidthList = []
-    for reportName in reportNames:
-        with open("/tmp/" + reportName, "r") as report:
-            for line in report:
-                # The built-in function all() described from official doc
-                # "
-                # Return True if all elements of the iterable are true
-                # (or if the iterable is empty)
-                # "
-                # As a result, the following if conditional is only executed
-                # when both keywords are in the line since the generator
-                # expression returns an iterable of True/False values
-                if all(keyword in line for keyword in ("MBytes", "Mbits/sec")):
-                    measuredBandwidth = float(line.split(" ")[-2])
-                    if "IperfClientFileSizeReport" == reportName:
-                        fileSizeBandwidthList.append(measuredBandwidth)
-                    elif "IperfClientLatencyReport" == reportName:
-                        latencyBandwidthList.append(measuredBandwidth)
-                    elif "IperfClientLossReport" == reportName:
-                        lossBandwidthList.append(measuredBandwidth)
-    return fileSizeBandwidthList, latencyBandwidthList, lossBandwidthList
-
-
-def perfPlotResult():
+def perfPlotResult(testRuns=10):
     """
     Plot the performance graph using the report generated by
     'perfTestFileSize' 'perfTestLatency' 'perfTestLoss'.
     """
 
-    fileSizeBandwidth, latencyBandwidth, lossBandwidth = perfParseResult()
-
+    perfGenResultList = perfGenResult(testRuns=testRuns)
     _, axisArray = plt.subplots(3, sharey=True)
 
-    axisArray[0].plot([2 ** i for i in range(1, 11)], fileSizeBandwidth, "ro-")
+    _, fileSizeAvg, fileSizeStdDev = perfGenResultList[0]
+    axisArray[0].errorbar([2 ** i for i in range(1, 11)],
+                          fileSizeAvg,
+                          yerr=fileSizeStdDev,
+                          marker="o")
+    #axisArray[0].plot([2 ** i for i in range(1, 11)], fileSizeBandwidth, "ro-")
     axisArray[0].axis([0, 2 ** 10, 0, 2 ** 10])
     axisArray[0].set_title("Performance Analysis Using Iperf/Mininet")
     axisArray[0].set_xlabel("File Size (MB)")
     axisArray[0].set_ylabel("Bandwidth (Mbps)")
     axisArray[0].grid(True)
 
-    axisArray[1].plot([i for i in range(1, 182, 20)], latencyBandwidth, "bs-")
+    _, latencyAvg, latencyStdDev = perfGenResultList[1]
+    axisArray[1].errorbar([i for i in range(1, 182, 20)],
+                          latencyAvg,
+                          yerr=latencyStdDev,
+                          marker="s")
+    #axisArray[1].plot([i for i in range(1, 182, 20)], latencyBandwidth, "bs-")
     axisArray[1].axis([0, 162, 0, 2 ** 10])
     axisArray[1].set_xlabel("Latency (Miliseconds)")
     axisArray[1].set_ylabel("Bandwidth (Mbps)")
     axisArray[1].grid(True)
 
-    axisArray[2].plot([i for i in range(0, 5)], lossBandwidth, "g^-")
+    _, lossAvg, lossStdDev = perfGenResultList[2]
+    axisArray[2].errorbar([i for i in range(0, 5)],
+                          lossAvg,
+                          yerr=lossStdDev,
+                          marker="^")
+    #axisArray[2].plot([i for i in range(0, 5)], lossBandwidth, "g^-")
     axisArray[2].axis([0, 11, 0, 2 ** 10])
     axisArray[2].set_xlabel("Loss Rate (%)")
     axisArray[2].set_ylabel("Bandwidth (Mbps)")
@@ -257,20 +340,17 @@ def perfPlotResult():
 if __name__ == "__main__":
     perfTestFlags = ["-t", "--test"]
     perfPlotResultFlags = ["-p", "--plot"]
-    perfVerboseFlags = ["-v", "--verbose"]
     perfAllFlags = ["-a", "--all"]
 
-    if any(cmdFlag in sys.argv for cmdFlag in perfVerboseFlags):
-        # Tell mininet to print useful information
-        setLogLevel("info")
+    # Tell mininet to print useful information
+    setLogLevel("info")
 
     if any(cmdFlag in sys.argv for cmdFlag in perfTestFlags):
-        perfTestAllMetrics()
+        perfGenResult()
     elif any(cmdFlag in sys.argv for cmdFlag in perfPlotResultFlags):
         perfPlotResult()
     elif any(cmdFlag in sys.argv for cmdFlag in perfAllFlags):
-        perfTestAllMetrics()
-        perfPlotResult()
+        perfPlotResult(2)
     else:
         print("[Usage]")
         for testOptions in perfTestFlags:
