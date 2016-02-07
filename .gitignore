@@ -36,3 +36,6 @@
 
 # Python compiled bytecode
 *.pyc
+
+# Exported binaries by pickle (author named them with the following extension)
+*.dat
