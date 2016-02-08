@@ -11,7 +11,7 @@ version 2.2.1.
 After the setup 3 separate tests are performed 5 times (please refer to
 issue #2 for further details) as demonstrated below.
 ## File Size
-![fileSizePlot](./doc/fileSizePlot.png)
+![fileSizePlot](./doc/fileSizePlot.png)  
 | File Size (MB) | Average (Mbps) | Standard Deviation  |
 |:--------------:| --------------:| -------------------:|
 | 2              | 1045.0         |  79.37568897338781  |
@@ -25,7 +25,7 @@ issue #2 for further details) as demonstrated below.
 | 512            | 824.0          |  2.8284271247461903 |
 | 1024           | 824.6          |  3.5777087639996634 |
 ## Latency
-![latencyPlot](./doc/latencyPlot.png)
+![latencyPlot](./doc/latencyPlot.png)  
 | Latency (MS) | Average (Mbps) | Standard Deviation   |
 |:------------:| --------------:| --------------------:|
 | 1            | 827.2          | 4.147288270665545    |
@@ -39,7 +39,7 @@ issue #2 for further details) as demonstrated below.
 | 161          | 102.5          | 48.573758347486354   |
 | 171          | 113.2          | 38.71304689636299    |
 ## Loss Rate
-![lossPlot](./doc/lossPlot.png)
+![lossPlot](./doc/lossPlot.png)  
 | Loss Rate (%) | Average (Mbps) | Standard Deviation   |
 |:-------------:| --------------:| --------------------:|
 | 0             | 807.0          | 3.6742346141747673   |
