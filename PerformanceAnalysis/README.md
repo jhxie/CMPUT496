@@ -77,7 +77,8 @@ Loss rate is tested with a very limited number of possibilities between
 in reality the data loss rate is much less than the percentage tested here;
 the reason for choosing such high loss rate is due to the limitation of current
 version(2.2.1) of mininet, which only permits percentage range from 0% up to
-100%. Judging by the drastic drop in bandwith when there is merely a 1% (again,
-this is possibly a huge amount in reality, this increase is minimal under the
-limitation of mininet) increase in the loss rate, we can see bandwidth is
-affected by an incredible margin when compared with the previous 2 test cases.
+100% (without fractions). Judging by the drastic drop in bandwith when there is
+merely a 1% (again, this is possibly a huge amount in reality, this increase is
+minimal under the limitation of mininet) increase in the loss rate, we can see
+bandwidth is affected by an incredible margin when compared with the previous 2
+test cases.
