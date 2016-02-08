@@ -45,6 +45,10 @@ def perfTestFileSize(rangeMin=1, rangeMax=11, useDD=True):
     Please NEVER SET THE OPTION useDD to False! Iperf sometimes "mysteriously"
     drop certain entries in the generated result file and the author has no
     idea what is the underlying cause for it.
+    Even though the "dd" program is capable of generating file of specifed
+    size, sometimes it would not do so when the file size is large
+    (1024MB, for example), the actual file size could vary from 980MB up to
+    the specified file size, the cause for it is unknown to the author.
     Example
     perfTestFileSize(1,11) would lead to file size range from 2MB up to 1024MB.
     """
@@ -84,14 +88,15 @@ def perfTestFileSize(rangeMin=1, rangeMax=11, useDD=True):
         # when dd is invoked using 'urandom' device; otherwise dd may not
         # read enough data to write the output file of proper size
         if False == useDD:
-            h2.cmd("iperf -f m -c {} -n {}M  >> /tmp/" + REPORTNAMES[FILESIZE]
-                   .format(h1.IP(), str(2 ** mb)))
+            h2.cmd("iperf -f m -c {} -n {}M  >> /tmp/"
+                   .format(h1.IP(), str(2 ** mb)) + REPORTNAMES[FILESIZE])
         else:
-            h2.cmd("dd if=/dev/urandom of={}M bs={}M count=1 iflag=fullblock"
+            h2.cmd("dd if=/dev/urandom of={}M bs=1M count={} iflag=fullblock"
                    .format(str(2 ** mb), str(2 ** mb)))
-            h2.cmd("iperf -f m -c {} -F {}M  >> /tmp/" + REPORTNAMES[FILESIZE]
-                   .format(h1.IP(), str(2 ** mb)))
+            h2.cmd("iperf -f m -c {} -F {}M  >> /tmp/"
+                   .format(h1.IP(), str(2 ** mb)) + REPORTNAMES[FILESIZE])
             h2.cmd("rm -f {}M".format(str(2 ** mb)))
+            h2.cmd("sync")
 
     h1.cmd("kill %")
     h2.cmd("kill %")
@@ -147,8 +152,9 @@ def perfTestLatency(rangeMin=1, rangeMax=182, rangeStep=20):
         # we have to be careful and remember to use 'append' shell redirection
         h1.cmd("iperf -f m -s > /dev/null 2>&1 &")
         print("Latency -------- [{} ms]".format(str(delay)))
-        h2.cmd("iperf -f m -c {} >> /tmp/" + REPORTNAMES[LATENCY]
-               .format(h1.IP()))
+        h2.cmd("iperf -f m -c {} >> /tmp/".format(h1.IP())
+               + REPORTNAMES[LATENCY])
+        h2.cmd("sync")
         h2.cmd("kill %")
         h1.cmd("kill %")
         net.stop()
@@ -364,6 +370,32 @@ def perfManageData(dataFileName, mode, exportList=None):
         return importedList
 
 
+def perfPrintResult(resultList=None):
+    """
+    Print the formatted result stored in the given parameter "resultList".
+    """
+    if not resultList:
+        raise ValueError("resultList must not be empty or none")
+
+    for testNumber in range(len(resultList)):
+        print("!! Data Collected from the ", end="")
+        if FILESIZE == testNumber:
+            print("File Size Test !!")
+        elif LATENCY == testNumber:
+            print("Latency Test !!")
+        elif LOSS == testNumber:
+            print("Loss Rate Test !!")
+
+        for recordIndex in range(len(resultList[0])):
+            if 0 == recordIndex:
+                print("!! Sum !!")
+            elif 1 == recordIndex:
+                print("!! Average !!")
+            elif 2 == recordIndex:
+                print("!! Standard Deviation !!")
+            print(resultList[testNumber][recordIndex])
+
+
 if __name__ == "__main__":
     perfTestDescription = "Perform Network Performance Analysis using " +\
                           "a Simple Topology with 1 Switch and 2 Hosts " +\
@@ -389,6 +421,12 @@ if __name__ == "__main__":
                         ", Must Be Used With Either -r or -f But Not Both",
                         required=False,
                         type=str)
+    parser.add_argument("-p",
+                        "--print",
+                        action="store_true",
+                        help="Print the Collected Data From All 3 Tests" +
+                        ", Must Be Used With Either -r or -f But Not Both",
+                        required=False)
     args = parser.parse_args()
     resultList = []
 
@@ -401,3 +439,6 @@ if __name__ == "__main__":
 
     if (args.output) and (args.runs or args.file):
         perfManageData(args.output, "w", resultList)
+
+    if (args.print) and (args.runs or args.file):
+        perfPrintResult(resultList)
