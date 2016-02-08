@@ -14,7 +14,6 @@ By default all 3 reports are generated under */tmp/* directory and are named
 **IperfClientFileSizeReport**, **IperfClientLatencyReport**, and
 **IperfClientLossReport**, which would be overwritten by previous runs if the
 *number of runs* command flag (see below for details) is set to more than 1.
-(remember to have matplotlib installed)
 
 The *perfTest.py* program has 2 main "operating modes"; one of them **MUST** be
 sepcified in order to do anything useful.
@@ -38,7 +37,8 @@ which are discussed below.
 **WARNING**  
 The following flags **MUST** be used along with **ONE** of the operating modes!
 
-To export the generated result to a binary data to be imported later ("-f"):
+To export the generated result to a binary data to be imported later
+(*-f* flag):
 ```bash
 sudo python PerformanceAnalysis/perfTest.py -o [FILE]
 ```

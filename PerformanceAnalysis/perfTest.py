@@ -310,7 +310,8 @@ def perfPlotResult(perfGenResultList=None):
     if not perfGenResultList:
         raise ValueError("perfGenResultList must not be empty or none")
 
-    _, axisArray = plt.subplots(3, sharey=True)
+    fig, axisArray = plt.subplots(3, sharey=True)
+    fig.subplots_adjust(hspace=.9)
 
     _, fileSizeAvg, fileSizeStdDev = perfGenResultList[0]
     axisArray[0].errorbar([2 ** i for i in range(1, 11)],
@@ -344,6 +345,23 @@ def perfPlotResult(perfGenResultList=None):
     axisArray[2].grid(True)
 
     plt.show()
+    fig.savefig("bandwidthSummary.png")
+
+    # Reference for saving subplots
+    # http://stackoverflow.com/questions/4325733/save-a-subplot-in-matplotlib
+    for i in range(3):
+        extent = axisArray[i].get_window_extent().transformed(
+            fig.dpi_scale_trans.inverted())
+        subPlotName = ""
+        if FILESIZE == i:
+            subPlotName = "fileSize"
+            axisArray[i].set_title("")
+        elif LATENCY == i:
+            subPlotName = "latency"
+        elif LOSS == i:
+            subPlotName = "loss"
+        fig.savefig(subPlotName + "Plot.png",
+                    bbox_inches=extent.expanded(1.3, 1.8))
 
 
 def perfManageData(dataFileName, mode, exportList=None):
