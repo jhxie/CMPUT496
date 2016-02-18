@@ -34,8 +34,14 @@
 # Rope directory
 .ropeproject
 
+# CMake build directory
+Prototype/build
+
 # Python compiled bytecode
 *.pyc
 
-# Exported binaries by pickle (author named them with the following extension)
+# Exported binaries by pickle (author named them with such extension)
 *.dat
+
+# Saved vi session files
+*.vim
