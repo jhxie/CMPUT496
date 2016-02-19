@@ -15,9 +15,7 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
 endif()
 
 # remember to override this variable if debug info is not needed
-if(NOT CMAKE_BUILD_TYPE)
-	set(CMAKE_BUILD_TYPE Debug FORCE)
-endif()
+set(CMAKE_BUILD_TYPE "Debug")
 
 # note that this compiler option should work for all compilers that support
 # the same flag as gcc: so clang, mingw, and cygwin are all valid candidates

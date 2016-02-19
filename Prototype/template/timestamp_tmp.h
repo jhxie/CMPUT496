@@ -1,5 +1,5 @@
 /**
- * @file tssend_tmp.h
+ * @file timestamp_tmp.h
  * @author Jiahui Xie
  *
  * @section LICENSE
@@ -25,12 +25,8 @@
  * tssend program.
  */
 
-#if !defined(TSSEND_TMP_H) //&& defined(TSSEND_ONLY)
-#define TSSEND_TMP_H
-
-#ifndef _POSIX_C_SOURCE
-#define _POSIX_C_SOURCE 200809L
-#endif
+#ifndef TIMESTAMP_TMP_H
+#define TIMESTAMP_TMP_H
 
 #include <ctime>
 #include <cstring>
@@ -43,7 +39,7 @@ extern "C" {
 
 #ifdef __cplusplus
 }
-#endif
+#endif /* TIMESTAMP_TMP_H */
 
 /*
  * Note the while loop calling write() is based on the
@@ -93,4 +89,4 @@ tssend_end:
         return force_break == false ? send_count + 1 : send_count;
 }
 
-#endif /* TSSEND_TMP_H */
+#endif
