@@ -1,6 +1,3 @@
-#ifndef CMNUTIL_H
-#define CMNUTIL_H
-
 /**
  * @file cmnutil.h
  * @author Jiahui Xie
@@ -30,6 +27,9 @@
  * project but modified slightly to let the feature test macro test c++11
  * features instead of c99.
  */
+
+#ifndef CMNUTIL_H
+#define CMNUTIL_H
 
 /*
                        +-------------------------------+

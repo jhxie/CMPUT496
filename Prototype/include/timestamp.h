@@ -1,6 +1,3 @@
-#ifndef TIMESTAMP_H
-#define TIMESTAMP_H
-
 /**
  * @file timestamp.h
  * @author Jiahui Xie
@@ -27,12 +24,14 @@
  * Common header shared by both sender and receiver of a timestamp program.
  */
 
+#ifndef TIMESTAMP_H
+#define TIMESTAMP_H
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #include <getopt.h>
-#include <sys/ioctl.h>
 #include <unistd.h>
 
 #ifdef __cplusplus

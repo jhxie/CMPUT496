@@ -41,6 +41,7 @@ flags = [
     '-Wall',
     '-Wextra',
     '-I./include',
+    '-I./template',
     '-O0',
     '-ftrapv',
     '-fsanitize=address,leak,undefined',

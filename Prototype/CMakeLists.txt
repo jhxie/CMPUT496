@@ -49,6 +49,7 @@ endif()
 # relative root directory of this project
 include_directories(
 	${PROJECT_SOURCE_DIR}/include
+	${PROJECT_SOURCE_DIR}/template
 	)
 
 add_subdirectory(src)
