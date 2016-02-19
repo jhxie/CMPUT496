@@ -1,5 +1,5 @@
 /**
- * @file timestamp.h
+ * @file tsutil.h
  * @author Jiahui Xie
  *
  * @section LICENSE
@@ -21,29 +21,16 @@
  *
  * @section DESCRIPTION
  *
- * Common header shared by both sender and receiver of a timestamp program.
+ * Private header containing functions with internal linkages for timestamp.c.
  */
 
-#ifndef TIMESTAMP_H
-#define TIMESTAMP_H
+#if !defined(TSUTIL_H) && defined(TSONLY)
+#define TSUTIL_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <cstddef>
+#include <cstdint>
 
-#include <getopt.h>
-#include <unistd.h>
+static uintmax_t input_validate(const char *const candidate);
+static void usage(const char *name, int status, const char *msg = NULL);
 
-#ifdef __cplusplus
-}
-#endif
-
-#define ENV_TIMESTAMP_OUTPUT "TIMESTAMP_OUTPUT"
-
-enum class TimeStampMode : int {
-        RECEIVE,
-        SEND
-};
-
-struct timespec *timestamp_manipulate(struct timespec *ts, TimeStampMode mode);
-#endif /* TIMESTAMP_H */
+#endif /* TSUTIL_H */

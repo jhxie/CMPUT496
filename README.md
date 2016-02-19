@@ -54,13 +54,23 @@ vimdot PerformanceAnalysis/SingleSwitchTopo.dot
 ```
 
 ## Prototype
-For now this prototype measures per-packet response time by using 2 separate
-programs sending timestamps to each other and records the response time (one
-way RTT) on the sender's side; refer to its [README.md](./Prototype/README.md)
-for details of how to use those 2 programs.
-
-Please make sure you have the **build-essential** package installed if you are
-on a Debian-based machine (ubuntu for example), to install it, issue:
+Please make sure you have **build-essential** and **cmake** packages installed.
+if you are on a Debian-based machine (ubuntu for example), to install all the
+build dependencies, issue:
 ```bash
-sudo apt-get install build-essential
+sudo apt-get install build-essential cmake cmake-extras extra-cmake-modules
 ```
+After all the above build dependencies are installed, make sure your gcc's
+version is at least 5.1, then use the following commands to build the binary:
+```bash
+cd Prototype
+mkdir build
+cmake -Bbuild -H.
+make -C build
+```
+The final compiled binary will reside in build/src/.
+
+For now this prototype measures per-packet response time by using a *timestamp*
+program sending timestamps to each other and records the response time (one
+way RTT) on the receiver side; refer to its [README.md](./Prototype/README.md)
+for details.

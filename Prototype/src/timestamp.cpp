@@ -34,69 +34,9 @@
 #include "cmnutil.h"
 #include "timestamp.h"
 #include "timestamp_tmp.h"
-
-static uintmax_t input_validate(const char *const candidate)
-{
-        char *endptr = NULL;
-        errno = 0;
-        uintmax_t result = strtoumax(candidate, &endptr, 10);
-
-        /* Check overflow */
-        if (UINTMAX_MAX == result && ERANGE == errno) {
-                return 0U;
-        /*
-         * From the manual page of strtoumax(),
-         * "
-         * if there were no digits at all, strtoul() stores the original value
-         * of nptr in endptr (and returns 0)
-         * "
-         * so an argument with some numbers mixed-in would work in this case.
-         */
-        } else if (0U == result && endptr == candidate) {
-                return 0U;
-        }
-        return result;
-}
-
-static void usage(const char *name, int status, const char *msg = NULL)
-{
-        using std::fprintf;
-
-        if (NULL != msg) {
-                fprintf(stderr,
-                        "[" ANSI_COLOR_CYAN "Error" ANSI_COLOR_RESET "]\n"
-                        "%s\n\n",
-                        msg);
-        }
-        fprintf(stderr,
-                "[" ANSI_COLOR_BLUE "Usage" ANSI_COLOR_RESET "]\n"
-                "%s [-h] [-r | -s] [-c MESSAGE_COUNT]\n\n"
-
-                "<" ANSI_COLOR_CYAN "Receiver Mode" ANSI_COLOR_RESET ">\n"
-                "Receives messages containing timestamps from stdin "
-                ANSI_COLOR_MAGENTA "MESSAGE_COUNT" ANSI_COLOR_RESET
-                " times.\n\n"
-
-                "<" ANSI_COLOR_CYAN "Sender   Mode" ANSI_COLOR_RESET ">\n"
-                "Sends messages containing timestamps to stdout "
-                ANSI_COLOR_MAGENTA "MESSAGE_COUNT" ANSI_COLOR_RESET
-                " times.\n\n"
-#if 0
-                "simultaneously receives message from stdin and write the "
-                "result to a file\n"
-                "indicated by an environment variable named "
-                ANSI_COLOR_MAGENTA "TSSEND_OUTPUT" ANSI_COLOR_RESET ".\n\n"
-#endif
-                "[" ANSI_COLOR_BLUE "Optional Arguments" ANSI_COLOR_RESET "]\n"
-                "-h, --help\tshow this help message and exit\n"
-                "-r, --receiver\toperates in receiver mode\n"
-                "-s, --sender\toperates in sender mode\n"
-                "-c, --count\tnumber of messages to be sent\n"
-                "\n[" ANSI_COLOR_BLUE "NOTE" ANSI_COLOR_RESET "]\n"
-                "It would print gibberish if shell redirection isn't used!\n",
-                NULL == name ? "" : name);
-        exit(status);
-}
+#define  TSONLY
+#include "tsutil.h"
+#undef  TSONLY
 
 int main(int argc, char *argv[])
 {
@@ -113,15 +53,15 @@ int main(int argc, char *argv[])
 #define RECEIVER    'r'
 #define SENDER      's'
 #define UNSPECIFIED  0
-        int                         operating_mode = UNSPECIFIED;
-        int                         opt            = 0;
-        uintmax_t                   send_count     = 0U;
+        int                         operating_mode   = UNSPECIFIED;
+        int                         opt              = 0;
+        uintmax_t                   send_recv_count  = 0U;
         /*
          * Prohibit getopt_long() from printing error message of its own by
          * prefixing the optstring formal parameter (TSSEND_FLAGS actual
          * argument in this case) by a colon.
          */
-        static const char *const    TSSEND_FLAGS   = ":c:rs";
+        static const char *const    TSSEND_FLAGS     = ":c:rs";
         /*
          * From the manual page (section 3) of getopt(),
          * "by default, getopt() permutes the contents of argv as it scans",
@@ -130,7 +70,7 @@ int main(int argc, char *argv[])
          * personally I think RAII is a better approach especially for (future)
          * multi-process or multi-thread programs to avoid many potential bugs.
          */
-        const string                PROGRAM_NAME   = string(argv[0]);
+        const string                PROGRAM_NAME     = string(argv[0]);
         /*
          * There is no size indicator given to getopt_long(), so an extra
          * "empty" member is padded, similar to the convention of a c string.
@@ -182,7 +122,7 @@ int main(int argc, char *argv[])
                 case 0:
                         break;
                 case 'c':
-                        send_count = input_validate(optarg);
+                        send_recv_count = input_validate(optarg);
                         break;
                 case 'r':
                 case 's':
@@ -206,23 +146,161 @@ int main(int argc, char *argv[])
                 usage(PROGRAM_NAME.c_str(), EXIT_FAILURE, NULL);
         }
 
-        if (RECEIVER == operating_mode) {
-                puts("Receiver detected!");
-        }
         /*
          * If the above branch is taken, all the code following would NEVER
          * be executed since usage does not return to its caller.
          */
-        if (SENDER == operating_mode && 0U == send_count) {
+        if (0U == send_recv_count) {
                 usage(PROGRAM_NAME.c_str(), EXIT_FAILURE, "Invalid argument!");
+        }
+
+        if (NULL == secure_getenv(ENV_TIMESTAMP_OUTPUT)) {
+                usage(PROGRAM_NAME.c_str(),
+                      EXIT_FAILURE,
+                      "Environment variable missing!");
         }
         /* Rely on implicit instantiation to call template function tssend()
          * with type uintmax_t; note the returned actual number of timestamps
          * written is not checked.
          */
-        tssend<uintmax_t>(send_count);
+        switch (operating_mode) {
+        case RECEIVER:
+                timestamp<uintmax_t>(send_recv_count, TimeStampMode::RECEIVE);
+                break;
+        case SENDER:
+                timestamp<uintmax_t>(send_recv_count, TimeStampMode::SEND);
+        }
         return EXIT_SUCCESS;
-#undef SENDER
 #undef RECEIVER
+#undef SENDER
 #undef UNSPECIFIED
 }
+struct timespec *timestamp_manipulate(struct timespec *ts, TimeStampMode mode)
+{
+        /*
+         * Buffer is declared as a char * type to avoid undefined behavior
+         * of doing pointer arithmetic on a void * type.
+         */
+        char           *buffer      = NULL;
+        ssize_t         bcount      = 0;
+        ssize_t         breach      = 0;
+        struct timespec receiver_ts = { };
+
+        memset(&receiver_ts, 0, sizeof(struct timespec));
+
+        switch (mode) {
+        case TimeStampMode::RECEIVE:
+                buffer = reinterpret_cast<char *>(&receiver_ts);
+                break;
+        case TimeStampMode::SEND:
+                buffer = reinterpret_cast<char *>(ts);
+        }
+
+        while (static_cast<long long>(bcount) <
+               static_cast<long long>(sizeof(struct timespec))) {
+                switch (mode) {
+                case TimeStampMode::RECEIVE:
+                        breach = read(STDIN_FILENO,
+                                      buffer,
+                                      (sizeof(struct timespec)) - bcount);
+                        break;
+                case TimeStampMode::SEND:
+                        breach = write(STDOUT_FILENO,
+                                       buffer,
+                                       (sizeof(struct timespec)) - bcount);
+                        break;
+                }
+                if (-1 == breach) {
+                        return NULL;
+                } else if (0 < breach) {
+                        bcount += breach;
+                        buffer += breach;
+                }
+        }
+
+        /*
+         * For receivers, an update to the current time is required since
+         * the above read() system call could possibly block for a long time
+         * especially across a lossy network.
+         */
+        if (TimeStampMode::RECEIVE == mode) {
+                switch (clock_gettime(CLOCK_REALTIME, ts)) {
+                case 0:
+                        /* Both fields are arithmetic types */
+                        ts->tv_sec = ts->tv_sec - receiver_ts.tv_nsec;
+                        ts->tv_nsec = ts->tv_nsec - receiver_ts.tv_nsec;
+                        break;
+                case -1:
+                        return NULL;
+                }
+        }
+        return ts;
+}
+
+static uintmax_t input_validate(const char *const candidate)
+{
+        char *endptr = NULL;
+        errno = 0;
+        uintmax_t result = strtoumax(candidate, &endptr, 10);
+
+        /* Check overflow */
+        if (UINTMAX_MAX == result && ERANGE == errno) {
+                return 0U;
+        /*
+         * From the manual page of strtoumax(),
+         * "
+         * if there were no digits at all, strtoul() stores the original value
+         * of nptr in endptr (and returns 0)
+         * "
+         * so an argument with some numbers mixed-in would work in this case.
+         */
+        } else if (0U == result && endptr == candidate) {
+                return 0U;
+        }
+        return result;
+}
+
+static void usage(const char *name, int status, const char *msg)
+{
+        using std::fprintf;
+
+        if (NULL != msg) {
+                fprintf(stderr,
+                        "[" ANSI_COLOR_BLUE "Error" ANSI_COLOR_RESET "]\n"
+                        "%s\n\n",
+                        msg);
+        }
+        fprintf(stderr,
+                "[" ANSI_COLOR_BLUE "Usage" ANSI_COLOR_RESET "]\n"
+                "%s [-h] [-r | -s] [-c MESSAGE_COUNT]\n\n"
+
+                "<" ANSI_COLOR_CYAN "Receiver Mode" ANSI_COLOR_RESET ">\n"
+                "Receives messages containing timestamps from stdin "
+                ANSI_COLOR_MAGENTA "MESSAGE_COUNT" ANSI_COLOR_RESET
+                " times.\n\n"
+
+                "<" ANSI_COLOR_CYAN "Sender   Mode" ANSI_COLOR_RESET ">\n"
+                "Sends messages containing timestamps to stdout "
+                ANSI_COLOR_MAGENTA "MESSAGE_COUNT" ANSI_COLOR_RESET
+                " times.\n\n"
+#if 0
+                "simultaneously receives message from stdin and write the "
+                "result to a file\n"
+                "indicated by an environment variable named "
+                ANSI_COLOR_MAGENTA "TSSEND_OUTPUT" ANSI_COLOR_RESET ".\n\n"
+#endif
+                "[" ANSI_COLOR_BLUE "Optional Arguments" ANSI_COLOR_RESET "]\n"
+                "-h, --help\tshow this help message and exit\n"
+                "-r, --receiver\toperates in receiver mode\n"
+                "-s, --sender\toperates in sender mode\n"
+                "-c, --count\tnumber of messages to be sent\n"
+                "\n[" ANSI_COLOR_BLUE "NOTE" ANSI_COLOR_RESET "]\n"
+                "1. Environment variable "
+                ANSI_COLOR_MAGENTA ENV_TIMESTAMP_OUTPUT ANSI_COLOR_RESET
+                " needs to be set for receiver to work properly.\n"
+                "2. It will print gibberish if shell redirection isn't used"
+                " on the sender side.\n",
+                NULL == name ? "" : name);
+        exit(status);
+}
+
