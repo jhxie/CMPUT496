@@ -26,3 +26,9 @@ instead:
 ./timestamp -s -c 10 | ./timestamp -r -c 10
 ```
 then the report (csv) would be recorded in *logfile*.
+
+## Usage Message
+To show a list of supported command line options and arguments, issue:
+```bash
+./timestamp --help
+```
