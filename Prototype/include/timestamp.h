@@ -31,6 +31,7 @@
 extern "C" {
 #endif
 
+#include <getopt.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
 

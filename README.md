@@ -3,7 +3,7 @@ Shared Repository of Course Material for CMPUT 496.
 
 ## Network Performance Analysis using Mininet
 Please remember to have the **mininet** installed first, to plot the performance
-and network topology graph , **graphviz** and **matplotlib** are needed as well.  
+and network topology graph , **graphviz** and **matplotlib** are needed as well.
 If you are on a Debian-based linux machine (ubuntu for example), type the
 following to install the dependency
 (note it is tested on ubuntu 14.04/15.10 only):
@@ -33,8 +33,8 @@ sudo python PerformanceAnalysis/perfTest.py -f [FILE]
 ```
 
 The *perfTest.py* program also supports 2 optional flags that are very useful,
-which are discussed below.  
-**WARNING**  
+which are discussed below.
+**WARNING**
 The following flags **MUST** be used along with **ONE** of the operating modes!
 
 To export the generated result to a binary data to be imported later
@@ -51,4 +51,16 @@ sudo python PerformanceAnalysis/perfTest.py -p
 To render the network topology graph (remember to have graphviz installed):
 ```bash
 vimdot PerformanceAnalysis/SingleSwitchTopo.dot
+```
+
+## Prototype
+For now this prototype measures per-packet response time by using 2 separate
+programs sending timestamps to each other and records the response time (one
+way RTT) on the sender's side; refer to its [README.md](./Prototype/README.md)
+for details of how to use those 2 programs.
+
+Please make sure you have the **build-essential** package installed if you are
+on a Debian-based machine (ubuntu for example), to install it, issue:
+```bash
+sudo apt-get install build-essential
 ```

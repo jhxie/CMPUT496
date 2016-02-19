@@ -35,7 +35,7 @@
 .ropeproject
 
 # CMake build directory
-Prototype/build
+build
 
 # Python compiled bytecode
 *.pyc

@@ -1,9 +1,10 @@
 # this cmake configuration is based on an existing file the author
 # himself wrote for another project with some minor changes added
 cmake_minimum_required(VERSION 2.8.12 FATAL_ERROR)
-project(PROTOTYPE)
+project(PROTOTYPE C CXX)
 
-if(WIN32)
+# the short system name, e.g. "Linux", "FreeBSD" or "Windows"
+if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
 	# unfortunately I have not actually tested my code
 	# on windows using mingw/cygwin
 	# so feel free to report any bugs encoutered when you are using them
@@ -31,6 +32,18 @@ set(CMAKE_CXX_STANDARD 11)
 # prevent the previous one from "decaying" to previous standards;
 # i.e. make the c99 standard a requirement
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# test the existence of pthread run-time on the system
+find_package(Threads REQUIRED)
+if(NOT CMAKE_THREAD_LIBS_INIT)
+	message(FATAL_ERROR "Pthread must be supported on the system!")
+else()
+	# for systems that have multiple thread libraries support,
+	# select pthread as the preferred implementation to link to
+	if(NOT CMAKE_USE_PTHREADS_INIT)
+		set(CMAKE_THREAD_PREFER_PTHREAD ON)
+	endif()
+endif()
 
 # common header(s) reside(s) in the include directory in the
 # relative root directory of this project

@@ -147,15 +147,10 @@
                             |Enumeration Definitions|
                             +-----------------------+
 */
-enum class UsageError : size_t {
-        MISSING_ARGUMENT = 0U,
-        UNRECOG_OPTION
-};
 
 /*
                             +---------------------+
                             |Function Declarations|
                             +---------------------+
 */
-void usage_error(const char *prog_name, UsageError err_type, int option);
 #endif /* CMNUTIL_H */
