@@ -1,8 +1,8 @@
 # Prototype
 This prototype is composed of a single program, *timestamp*, that is capable of
-operating in either sender or receiver mode (not both, if both corresponding
-options are given, the options that come last would be the actual mode) depends
-on the arguments given.
+operating in either sender or receiver mode (not both, if both options are
+given, the options that come last would be the actual mode) depends on the
+arguments given.
 
 ## Sending Timestamps
 To send 10 timestamps to stdout, issue:
