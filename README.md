@@ -89,6 +89,8 @@ then perform the following to generate the documentation:
 cd Prototype
 doxygen Doxyfile
 ```
+by default the generated **html** and **latex** will reside in *doc* folder,
+browse the **html** version by opening *doc/html/index.html*.
 ### Overview
 For now this prototype measures per-packet response time by using a *timestamp*
 program sending timestamps to each other and records the response time (one
