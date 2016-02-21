@@ -196,8 +196,13 @@ struct timespec *timestamp_manipulate(struct timespec *ts, TimeStampMode mode)
                 buffer = reinterpret_cast<char *>(ts);
         }
 
-        while (static_cast<long long>(bcount) <
-               static_cast<long long>(sizeof(struct timespec))) {
+        /*
+         * Assume the underlying type of ssize_t and size_t are not
+         * long long, unsigned long long, respectively;
+         * the architecture must also support long long integer.
+         */
+        while (narrow_cast<long long, ssize_t>(bcount) <
+               narrow_cast<long long, size_t>(sizeof(struct timespec))) {
                 switch (mode) {
                 case TimeStampMode::RECEIVE:
                         breach = read(STDIN_FILENO,

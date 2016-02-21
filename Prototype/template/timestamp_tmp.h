@@ -22,7 +22,8 @@
  * @section DESCRIPTION
  *
  * Template header for the main sending and receiving functionality of
- * the timestamp program.
+ * the timestamp program; along with a utility template function for doing
+ * conversion between two scalar numeric types.
  */
 
 #ifndef TIMESTAMP_TMP_H
@@ -36,6 +37,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <stdexcept>
 
 #ifdef __cplusplus
 extern "C" {
@@ -122,4 +124,21 @@ auto timestamp(IntType rs_count, TimeStampMode mode) -> decltype(rs_count + 1)
         return force_break == false ? rs_count + 1 : rs_count;
 }
 
+/*
+ * This template function is based on an example from
+ *  Chapter 11 Section 5 Explicit Type Conversion of
+ * "The C++ Programming Language, 4th Edition" by Bjarne Stroustrup.
+ */
+template<typename Target, typename Source>
+Target narrow_cast(Source value)
+{
+        using std::runtime_error;
+        /* C++11 automatic type deduction */
+        auto result = static_cast<Target>(value);
+
+        if (value != static_cast<Source>(result)) {
+                throw runtime_error("narrow_cast<>() failed");
+        }
+        return result;
+}
 #endif /* TIMESTAMP_TMP_H */
