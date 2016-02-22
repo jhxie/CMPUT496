@@ -1,5 +1,6 @@
 # this cmake configuration is based on an existing file the author
-# himself wrote for another project with some minor changes added
+# wrote for another project with some minor changes added to make
+# it work properly with a modern c++ 11 codebase
 cmake_minimum_required(VERSION 2.8.12 FATAL_ERROR)
 # both languages have to be listed here due to issues in the cmake build system
 # e.g. cmake will not find thread library for some unknown reason if c is not
@@ -19,6 +20,9 @@ endif()
 
 # remember to override this variable if debug info is not needed
 set(CMAKE_BUILD_TYPE "Debug")
+# by default let the project be installed to the source folder
+set(CMAKE_INSTALL_PREFIX ${PROJECT_SOURCE_DIR})
+set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 
 # note that this compiler option should work for all compilers that support
 # the same flag as gcc: so clang, mingw, and cygwin are all valid candidates

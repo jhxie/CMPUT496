@@ -21,22 +21,12 @@
  *
  * @section DESCRIPTION
  *
- * Common header shared by both sender and receiver of a timestamp program.
+ * Public header used to export an external linkage function used by
+ * the template function timestamp().
  */
 
 #ifndef TIMESTAMP_H
 #define TIMESTAMP_H
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#include <getopt.h>
-#include <unistd.h>
-
-#ifdef __cplusplus
-}
-#endif
 
 #define ENV_TIMESTAMP_OUTPUT "TIMESTAMP_OUTPUT"
 

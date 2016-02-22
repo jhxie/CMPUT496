@@ -21,19 +21,14 @@
  *
  * @section DESCRIPTION
  *
- * Main source file of the sender side of the timestamp program.
+ * Main source file of the timestamp program.
  */
 
-#include <cerrno>    /* errno */
-#include <cinttypes> /* strtoumax() */
-#include <cstdint>   /* uintmax_t */
-#include <cstdio>    /* fprintf() */
-#include <cstdlib>   /* EXIT_FAILURE EXIT_SUCCESS */
-#include <string>
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 
-#include "cmnutil.h"
-#include "timestamp.h"
-#include "timestamp_tmp.h"
+/* All the depedendent headers are put into a separate private header. */
 #define  TSONLY
 #include "tsutil.h"
 #undef  TSONLY

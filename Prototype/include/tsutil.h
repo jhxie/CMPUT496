@@ -21,14 +21,35 @@
  *
  * @section DESCRIPTION
  *
- * Private header containing functions with internal linkages for timestamp.c.
+ * Private header containing headers, and functions with internal linkages
+ * used by timestamp.c.
  */
 
 #if !defined(TSUTIL_H) && defined(TSONLY)
 #define TSUTIL_H
 
-#include <cstddef>
-#include <cstdint>
+#include <cerrno>    /* errno */
+#include <cinttypes> /* strtoumax() */
+#include <cstddef>   /* NULL */
+#include <cstdint>   /* uintmax_t */
+#include <cstdio>    /* fprintf() */
+#include <cstdlib>   /* EXIT_FAILURE EXIT_SUCCESS */
+#include <string>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include <getopt.h>  /* getopt_long() */
+#include <unistd.h>
+
+#ifdef __cplusplus
+}
+#endif
+
+#include "cmnutil.h"
+#include "timestamp.h"
+#include "timestamp_tmp.h"
 
 static uintmax_t input_validate(const char *const candidate);
 static void usage(const char *name, int status, const char *msg = NULL);
