@@ -229,6 +229,12 @@ struct timespec *timestamp_manipulate(struct timespec *ts, TimeStampMode mode)
                         /* Both fields are arithmetic types */
                         ts->tv_sec = ts->tv_sec - receiver_ts.tv_nsec;
                         ts->tv_nsec = ts->tv_nsec - receiver_ts.tv_nsec;
+
+			/* Paul */
+                        printf("X:  %lld,%ld\n",
+                                ts->tv_sec,
+                                ts->tv_nsec);
+
                         break;
                 case -1:
                         return NULL;
