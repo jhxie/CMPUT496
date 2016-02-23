@@ -233,6 +233,9 @@ struct timespec *timestamp_manipulate(struct timespec *ts, TimeStampMode mode)
                         printf("X2:  %lld,%ld\n",
                                 receiver_ts.tv_sec,
                                 receiver_ts.tv_nsec);
+                        printf("X3:  %lld,%ld\n",
+                                ts->tv_sec - receiver_ts.tv_sec,
+                                ts->tv_nsec - receiver_ts.tv_nsec);
 
                         /* Both fields are arithmetic types */
                         ts->tv_sec = ts->tv_sec - receiver_ts.tv_nsec;
