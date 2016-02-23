@@ -226,6 +226,14 @@ struct timespec *timestamp_manipulate(struct timespec *ts, TimeStampMode mode)
         if (TimeStampMode::RECEIVE == mode) {
                 switch (clock_gettime(CLOCK_REALTIME, ts)) {
                 case 0:
+			/* Paul */
+                        printf("X1:  %lld,%ld\n",
+                                ts->tv_sec,
+                                ts->tv_nsec);
+                        printf("X2:  %lld,%ld\n",
+                                receiver_ts.tv_sec,
+                                receiver_ts.tv_nsec);
+
                         /* Both fields are arithmetic types */
                         ts->tv_sec = ts->tv_sec - receiver_ts.tv_nsec;
                         ts->tv_nsec = ts->tv_nsec - receiver_ts.tv_nsec;
