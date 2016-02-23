@@ -14,8 +14,13 @@ To send 10 timestamps to stdout, issue:
 **REMEMBER** to define the environment variable **TIMESTAMP_OUTPUT** to specify
 where the output file containing timestamp records would go:
 ```bash
-export TIMESTAMP_OUTPUT=logfile
+export TIMESTAMP_OUTPUT=logfile.csv
 ```
+note the output is not strictly conforming to the format specified by IETF
+[comma-separated values](https://tools.ietf.org/html/rfc4180.html) definition
+because the line delimeter used is actually LF (no carriage return, as
+commonly seen to be used on windows machines).
+
 To receive 10 timestamps from stdin, issue:
 ```bash
 ./timestamp -r -c 10

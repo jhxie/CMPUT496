@@ -29,7 +29,7 @@
 #endif
 
 /* All the depedendent headers are put into a separate private header. */
-#define  TSONLY
+#define TSONLY
 #include "tsutil.h"
 #undef  TSONLY
 
@@ -37,8 +37,6 @@ int main(int argc, char *argv[])
 {
         using std::fprintf;
         using std::printf;
-        using std::string;
-
         /*
          * The reason not to use enumeration instead is c++ has stronger
          * type checking than c does: static_cast between enumerator and int
@@ -49,6 +47,27 @@ int main(int argc, char *argv[])
 #define SENDER      's'
 #define UNSPECIFIED  0
         int                         operating_mode   = UNSPECIFIED;
+        uintmax_t                   send_recv_count  = 0U;
+
+        send_recv_count = argument_parse(&operating_mode, argc, argv);
+        /*
+         * Rely on implicit instantiation to call template function timestamp()
+         * with type uintmax_t; note the actual returned number of timestamps
+         * written is not checked.
+         */
+        switch (operating_mode) {
+        case RECEIVER:
+                timestamp<uintmax_t>(send_recv_count, TimeStampMode::RECEIVE);
+                break;
+        case SENDER:
+                timestamp<uintmax_t>(send_recv_count, TimeStampMode::SEND);
+        }
+        return EXIT_SUCCESS;
+}
+
+uintmax_t argument_parse(int *operating_mode, int argc, char *argv[])
+{
+        using std::string;
         int                         opt              = 0;
         uintmax_t                   send_recv_count  = 0U;
         /*
@@ -72,36 +91,22 @@ int main(int argc, char *argv[])
          * To maintain compatibility with c, NULL is used rather than c++11's
          * recommendation, nullptr.
          * Note the designated initializer is a c99 feature, but in c++ it is
-         * not standardized because POD is not encouraged to be used in c++,
+         * not standardized because POD is not encouraged to be used in c++;
          * however gcc supports it as an extension regardless.
          * For better readability it is kept this way with some portability
          * sacrificed.
          */
         static const struct option  long_options[] = {
+                {"count",    required_argument, NULL, 'c'},
+                {"help",     no_argument,       NULL, 'h'},
+                {"receiver", no_argument,       NULL, 'r'},
+                {"sender",   no_argument,       NULL, 's'},
                 {
-                        .name    = "count",
-                        .has_arg = required_argument,
+                        .name    = NULL,
+                        .has_arg = 0,
                         .flag    = NULL,
-                        .val     = 'c'
-                },
-                {
-                        .name    = "help",
-                        .has_arg = no_argument,
-                        .flag    = NULL,
-                        .val     = 'h'},
-                {
-                        .name    = "receiver",
-                        .has_arg = no_argument,
-                        .flag    = NULL,
-                        .val     = 'r'
-                },
-                {
-                        .name    = "sender",
-                        .has_arg = no_argument,
-                        .flag    = NULL,
-                        .val     = 's'
-                },
-                {NULL,       0,                 NULL,   0}
+                        .val     = 0
+                }
         };
 
         while (-1 != (opt = getopt_long(argc,
@@ -110,18 +115,19 @@ int main(int argc, char *argv[])
                                         long_options,
                                         NULL))) {
                 switch (opt) {
-                /* 'case 0:' is for 'sender' and 'receiver' flag;
-                 * even though nothing needs to be done it is listed here
-                 * because explicit is better than implicit.
-                 * */
+                /*
+                 * 'case 0:' only triggered when any one of the flag
+                 * field in the 'struct option' is set to non-NULL value;
+                 * in this program this branch is never taken.
+                 */
                 case 0:
                         break;
                 case 'c':
-                        send_recv_count = input_validate(optarg);
+                        send_recv_count = count_validate(optarg);
                         break;
                 case 'r':
                 case 's':
-                        operating_mode = opt;
+                        *operating_mode = opt;
                         break;
                 case '?':
                         usage(PROGRAM_NAME.c_str(),
@@ -137,7 +143,7 @@ int main(int argc, char *argv[])
                 }
         }
 
-        if (1 == argc || UNSPECIFIED == operating_mode) {
+        if (1 == argc || UNSPECIFIED == *operating_mode) {
                 usage(PROGRAM_NAME.c_str(), EXIT_FAILURE, NULL);
         }
 
@@ -154,22 +160,12 @@ int main(int argc, char *argv[])
                       EXIT_FAILURE,
                       "Environment variable missing!");
         }
-        /* Rely on implicit instantiation to call template function tssend()
-         * with type uintmax_t; note the returned actual number of timestamps
-         * written is not checked.
-         */
-        switch (operating_mode) {
-        case RECEIVER:
-                timestamp<uintmax_t>(send_recv_count, TimeStampMode::RECEIVE);
-                break;
-        case SENDER:
-                timestamp<uintmax_t>(send_recv_count, TimeStampMode::SEND);
-        }
-        return EXIT_SUCCESS;
+        return send_recv_count;
 #undef RECEIVER
 #undef SENDER
 #undef UNSPECIFIED
 }
+
 struct timespec *timestamp_manipulate(struct timespec *ts, TimeStampMode mode)
 {
         /*
@@ -226,26 +222,9 @@ struct timespec *timestamp_manipulate(struct timespec *ts, TimeStampMode mode)
         if (TimeStampMode::RECEIVE == mode) {
                 switch (clock_gettime(CLOCK_REALTIME, ts)) {
                 case 0:
-			/* Paul */
-                        printf("X1:  %lld,%ld\n",
-                                ts->tv_sec,
-                                ts->tv_nsec);
-                        printf("X2:  %lld,%ld\n",
-                                receiver_ts.tv_sec,
-                                receiver_ts.tv_nsec);
-                        printf("X3:  %lld,%ld\n",
-                                ts->tv_sec - receiver_ts.tv_sec,
-                                ts->tv_nsec - receiver_ts.tv_nsec);
-
                         /* Both fields are arithmetic types */
-                        ts->tv_sec = ts->tv_sec - receiver_ts.tv_nsec;
+                        ts->tv_sec = ts->tv_sec - receiver_ts.tv_sec;
                         ts->tv_nsec = ts->tv_nsec - receiver_ts.tv_nsec;
-
-			/* Paul */
-                        printf("X:  %lld,%ld\n",
-                                ts->tv_sec,
-                                ts->tv_nsec);
-
                         break;
                 case -1:
                         return NULL;
@@ -254,7 +233,7 @@ struct timespec *timestamp_manipulate(struct timespec *ts, TimeStampMode mode)
         return ts;
 }
 
-static uintmax_t input_validate(const char *const candidate)
+static uintmax_t count_validate(const char *const candidate)
 {
         char *endptr = NULL;
         errno = 0;
@@ -316,7 +295,7 @@ static void usage(const char *name, int status, const char *msg)
                 ANSI_COLOR_MAGENTA ENV_TIMESTAMP_OUTPUT ANSI_COLOR_RESET
                 " needs to be set for receiver to work properly.\n"
                 "2. It will print gibberish if shell redirection isn't used"
-                " on the sender side.\n",
+                " on the sender side.\n\n",
                 NULL == name ? "" : name);
         exit(status);
 }

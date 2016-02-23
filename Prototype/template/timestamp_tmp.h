@@ -93,28 +93,13 @@ auto timestamp(IntType rs_count, TimeStampMode mode) -> decltype(rs_count + 1)
         for (i = 0; false == force_break && i < rs_count; ++i) {
                 if (-1 == clock_gettime(CLOCK_REALTIME, &current)) {
                         force_break = true;
-			/* Paul */
-                        fprintf(output_file,
-                                "A:  %lld,%ld\n",
-                                current.tv_sec,
-                                current.tv_nsec);
                         break;
                 }
                 if (NULL == timestamp_manipulate(&current, mode)) {
                         force_break = true;
-			/* Paul */
-                        fprintf(output_file,
-                                "D:  %lld,%ld\n",
-                                current.tv_sec,
-                                current.tv_nsec);
                         break;
                 }
                 if (TimeStampMode::RECEIVE == mode) {
-			/* Paul */
-                        fprintf(output_file,
-                                "C:  %lld,%ld\n",
-                                current.tv_sec,
-                                current.tv_nsec);
                         if (NULL == localtime_r(&current.tv_sec, &tmp_tm)) {
                                 force_break = true;
                                 break;
@@ -126,10 +111,9 @@ auto timestamp(IntType rs_count, TimeStampMode mode) -> decltype(rs_count + 1)
                                 force_break = true;
                                 break;
                         }
-			/* Paul */
                         fprintf(output_file,
-                                "B:  %lld,%ld\n",
-                                current.tv_sec,
+                                "%s,%ld\n",
+                                tmp_strftime,
                                 current.tv_nsec);
                 }
         }
@@ -137,7 +121,7 @@ auto timestamp(IntType rs_count, TimeStampMode mode) -> decltype(rs_count + 1)
         if (NULL != output_file) {
                 fclose(output_file);
         }
-        return force_break == false ? rs_count + 1 : rs_count;
+        return false == force_break ? rs_count + 1 : rs_count;
 }
 
 /*

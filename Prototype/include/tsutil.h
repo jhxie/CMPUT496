@@ -51,7 +51,8 @@ extern "C" {
 #include "timestamp.h"
 #include "timestamp_tmp.h"
 
-static uintmax_t input_validate(const char *const candidate);
+uintmax_t argument_parse(int *operating_mode, int argc, char *argv[]);
+static uintmax_t count_validate(const char *const candidate);
 static void usage(const char *name, int status, const char *msg = NULL);
 
 #endif /* TSUTIL_H */
