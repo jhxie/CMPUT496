@@ -93,6 +93,11 @@ auto timestamp(IntType rs_count, TimeStampMode mode) -> decltype(rs_count + 1)
         for (i = 0; false == force_break && i < rs_count; ++i) {
                 if (-1 == clock_gettime(CLOCK_REALTIME, &current)) {
                         force_break = true;
+			/* Paul */
+                        fprintf(output_file,
+                                "A:  %lld,%ld\n",
+                                current.tv_sec,
+                                current.tv_nsec);
                         break;
                 }
                 if (NULL == timestamp_manipulate(&current, mode)) {
@@ -111,8 +116,9 @@ auto timestamp(IntType rs_count, TimeStampMode mode) -> decltype(rs_count + 1)
                                 force_break = true;
                                 break;
                         }
+			/* Paul */
                         fprintf(output_file,
-                                "%lld,%ld\n",
+                                "B:  %lld,%ld\n",
                                 current.tv_sec,
                                 current.tv_nsec);
                 }
