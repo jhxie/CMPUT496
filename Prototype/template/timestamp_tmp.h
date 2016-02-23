@@ -102,9 +102,19 @@ auto timestamp(IntType rs_count, TimeStampMode mode) -> decltype(rs_count + 1)
                 }
                 if (NULL == timestamp_manipulate(&current, mode)) {
                         force_break = true;
+			/* Paul */
+                        fprintf(output_file,
+                                "D:  %lld,%ld\n",
+                                current.tv_sec,
+                                current.tv_nsec);
                         break;
                 }
                 if (TimeStampMode::RECEIVE == mode) {
+			/* Paul */
+                        fprintf(output_file,
+                                "C:  %lld,%ld\n",
+                                current.tv_sec,
+                                current.tv_nsec);
                         if (NULL == localtime_r(&current.tv_sec, &tmp_tm)) {
                                 force_break = true;
                                 break;
