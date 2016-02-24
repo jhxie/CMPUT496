@@ -9,6 +9,7 @@ python is used rather than usual shell scripts.
 from __future__ import print_function
 
 import matplotlib.pyplot as plt
+import multiprocessing
 import os
 import subprocess
 import sys
@@ -20,11 +21,12 @@ def autoGen():
     """
 
     buildDirectory = "./build"
+    logicalCPUCount = str(multiprocessing.cpu_count() + 1)
     # Note the cmake commands used are not shown in official documentation:
     # '-B' specifies the build directory
     # '-H' specifies the source directory
     cmakeCommands = ["cmake", "-B" + buildDirectory, "-H."]
-    makeCommands = ["make", "-C", buildDirectory]
+    makeCommands = ["make", "-j", logicalCPUCount, "-C", buildDirectory]
 
     if "posix" != os.name:
         sys.exit("This script is only mean to be used on POSIX systems.")
