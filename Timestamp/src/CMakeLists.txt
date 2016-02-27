@@ -4,4 +4,4 @@ add_executable(timestamp timestamp.cpp)
 install(TARGETS timestamp
 		RUNTIME DESTINATION bin      COMPONENT Runtime)
 	#LIBRARY DESTINATION lib      COMPONENT Runtime
-	#ARCHIVE DESTINATION lib/prototype COMPONENT Development)
+	#ARCHIVE DESTINATION lib/timestamp COMPONENT Development)

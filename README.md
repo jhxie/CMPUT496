@@ -55,7 +55,7 @@ To render the network topology graph (remember to have graphviz installed):
 vimdot PerformanceAnalysis/SingleSwitchTopo.dot
 ```
 
-## Prototype
+## Timestamp
 ### Dependencies
 Please make sure you have **build-essential** and **cmake** packages installed.
 if you are on a Debian-based machine (ubuntu for example), to install all the
@@ -66,7 +66,7 @@ sudo apt-get install build-essential cmake cmake-extras extra-cmake-modules
 After all the above build dependencies are installed, make sure your gcc's
 version is at least 5.1, then use the following commands to build the binary:
 ```bash
-cd Prototype
+cd Timestamp
 mkdir build
 cmake -Bbuild -H.
 make -j5 -C build
@@ -86,7 +86,7 @@ sudo apt-get install doxygen
 ```
 then perform the following to generate the documentation:
 ```bash
-cd Prototype
+cd Timestamp
 doxygen Doxyfile
 ```
 by default the generated **html** and **latex** will reside in *doc* folder,
@@ -94,5 +94,5 @@ browse the **html** version by opening *doc/html/index.html*.
 ### Overview
 For now this prototype measures per-packet response time by using a *timestamp*
 program sending timestamps to each other and records the response time (one
-way RTT) on the receiver side; refer to its [README.md](./Prototype/README.md)
+way RTT) on the receiver side; refer to its [README.md](./Timestamp/README.md)
 for details.

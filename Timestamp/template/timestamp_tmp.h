@@ -33,6 +33,9 @@
 #define _GNU_SOURCE
 #endif
 
+#include "timestamp.h"
+
+
 #include <ctime>
 #include <cstdio>
 #include <cstdlib>
@@ -48,8 +51,6 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
-
-#include "timestamp.h"
 /*
  * Note the while loop calling write() is based on the
  * "BSD Sockets: A Quick And Dirty Primer" by Jim Frost.
