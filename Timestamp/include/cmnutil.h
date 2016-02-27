@@ -88,10 +88,11 @@
                                 +--------------+
 */
 
-#include <cerrno>  /* errno */
-#include <cstdio>  /* fprintf() */
-#include <cstdlib> /* abort() */
-#include <cstdlib> /* strerror() */
+#include <cerrno>    /* errno */
+#include <cstdio>    /* fprintf() */
+#include <cstdlib>   /* abort() */
+#include <cstring>   /* strerror() */
+#include <stdexcept> /* runtime_error */
 
 /* ANSI Color Escape Sequences */
 #define ANSI_COLOR_RED     "\x1b[31m"
@@ -153,4 +154,31 @@
                             |Function Declarations|
                             +---------------------+
 */
+ssize_t bseq_read(int fd, void *seq, size_t count);
+ssize_t bseq_write(int fd, const void *seq, size_t count);
+
+/*
+                        +-----------------------------+
+                        |Template Function Definitions|
+                        +-----------------------------+
+*/
+
+/*
+ * This template function is based on an example from
+ *  Chapter 11 Section 5 Explicit Type Conversion of
+ * "The C++ Programming Language, 4th Edition" by Bjarne Stroustrup.
+ */
+template<typename Target, typename Source>
+Target narrow_cast(Source value)
+{
+        using std::runtime_error;
+        /* C++11 automatic type deduction */
+        auto result = static_cast<Target>(value);
+
+        if (value != static_cast<Source>(result)) {
+                throw runtime_error("narrow_cast<>() failed");
+        }
+        return result;
+}
+
 #endif /* CMNUTIL_H */

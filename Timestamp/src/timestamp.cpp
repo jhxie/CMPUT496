@@ -173,62 +173,31 @@ struct timespec *timestamp_manipulate(struct timespec *ts, TimeStampMode mode)
          * of doing pointer arithmetic on a void * type.
          */
         char           *buffer      = NULL;
-        ssize_t         bcount      = 0;
-        ssize_t         breach      = 0;
         struct timespec receiver_ts = { };
 
         memset(&receiver_ts, 0, sizeof(struct timespec));
 
         switch (mode) {
-        case TimeStampMode::RECEIVE:
-                buffer = reinterpret_cast<char *>(&receiver_ts);
-                break;
-        case TimeStampMode::SEND:
-                buffer = reinterpret_cast<char *>(ts);
-        }
-
-        /*
-         * Assume the underlying type of ssize_t and size_t are not
-         * long long, unsigned long long, respectively;
-         * the architecture must also support long long integer.
-         */
-        while (narrow_cast<long long, ssize_t>(bcount) <
-               narrow_cast<long long, size_t>(sizeof(struct timespec))) {
-                switch (mode) {
-                case TimeStampMode::RECEIVE:
-                        breach = read(STDIN_FILENO,
-                                      buffer,
-                                      (sizeof(struct timespec)) - bcount);
-                        break;
-                case TimeStampMode::SEND:
-                        breach = write(STDOUT_FILENO,
-                                       buffer,
-                                       (sizeof(struct timespec)) - bcount);
-                        break;
-                }
-                if (-1 == breach) {
-                        return NULL;
-                } else if (0 < breach) {
-                        bcount += breach;
-                        buffer += breach;
-                }
-        }
-
         /*
          * For receivers, an update to the current time is required since
          * the above read() system call could possibly block for a long time
-         * especially across a lossy network.
+         * especially across a lossy WAN.
          */
-        if (TimeStampMode::RECEIVE == mode) {
-                switch (clock_gettime(CLOCK_REALTIME, ts)) {
-                case 0:
+        case TimeStampMode::RECEIVE:
+                buffer = reinterpret_cast<char *>(&receiver_ts);
+                bseq_read(STDIN_FILENO, buffer, sizeof(struct timespec));
+
+                if (0 == clock_gettime(CLOCK_REALTIME, ts)) {
                         /* Both fields are arithmetic types */
                         ts->tv_sec = ts->tv_sec - receiver_ts.tv_sec;
                         ts->tv_nsec = ts->tv_nsec - receiver_ts.tv_nsec;
-                        break;
-                case -1:
+                } else {
                         return NULL;
                 }
+                break;
+        case TimeStampMode::SEND:
+                buffer = reinterpret_cast<char *>(ts);
+                bseq_write(STDOUT_FILENO, buffer, sizeof(struct timespec));
         }
         return ts;
 }

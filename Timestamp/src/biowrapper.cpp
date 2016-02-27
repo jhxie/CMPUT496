@@ -30,7 +30,7 @@
 
 #include "biowrapper.h"
 
-#include <stdexcept>
+#include <cstdio>
 
 BIOWrapper::BIOWrapper(BIO_METHOD *method_type)
         : bio_handle_{BIO_new(method_type)}
@@ -44,10 +44,15 @@ BIOWrapper::BIOWrapper(FILE *file_stream, int close_flag)
 
 BIOWrapper::~BIOWrapper()
 {
-        using std::runtime_error;
+        /*
+         * It is potentially unsafe to throw exceptions in destructors;
+         * print to stderr instead.
+         * Another alternative would be print to logfiles.
+         */
+        using std::fprintf;
 
         if (0 == BIO_free(this->bio_handle_)) {
-                throw runtime_error("BIO_free() failed");
+                fprintf(stderr, "BIO_free() failed\n");
         }
 }
 

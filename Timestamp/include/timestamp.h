@@ -28,6 +28,11 @@
 #ifndef TIMESTAMP_H
 #define TIMESTAMP_H
 
+/**
+ * @def ENV_TIMESTAMP_OUTPUT
+ * @brief Records the name of the environment symbol used to specify logfile
+ *        on the receiver side.
+ */
 #define ENV_TIMESTAMP_OUTPUT "TIMESTAMP_OUTPUT"
 
 enum class TimeStampMode : int {
