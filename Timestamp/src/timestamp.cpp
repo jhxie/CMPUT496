@@ -26,6 +26,7 @@
 #define _GNU_SOURCE
 #endif
 
+#include "biowrapper.h"
 #include "cmnutil.h"
 #include "timestamp.h"
 
@@ -33,11 +34,17 @@
 #include <cstring>   /* memset() */
 #include <stdexcept> /* domain_error runtime_error */
 
-TimeStamp::TimeStamp(size_t pad_size, const char *env_symbol)
-        : log_{NULL},
+TimeStamp::TimeStamp(TimeStampMode mode,
+                     size_t        pad_size,
+                     const char   *env_symbol)
+        : mode_{mode},
+          log_{NULL},
           log_env_symbol_{env_symbol},
           pad_size_{pad_size},
-          tot_size_{sizeof(Stamp_) + pad_size_}
+          tot_size_{sizeof(Stamp_) + pad_size_},
+          bio_base64_{NULL},
+          bio_output_{NULL},
+          bio_input_{NULL}
 {
         /*
          * Checks whether wrap-around behavior would occur when passed
@@ -54,7 +61,6 @@ TimeStamp::TimeStamp(size_t pad_size, const char *env_symbol)
         if (NULL == stamp_) {
                 throw std::runtime_error("TimeStamp(): malloc() call failed");
         }
-
         /*
          * Note the trailing padding field is intentially left un-initialized
          * to prevent potential compression algorithms used by ssh from
@@ -72,8 +78,13 @@ TimeStamp::~TimeStamp()
 size_t TimeStamp::recv(size_t count)
 {
         using std::memset;
+        using std::runtime_error;
 
-        bool            force_break           = false;
+        if (TimeStampMode::SEND == mode_) {
+                throw runtime_error("recv(): not allowed in SEND mode");
+        }
+
+        auto            casted_tot_size_ = narrow_cast<int, size_t>(tot_size_);
         size_t          i                     = 0U;
         struct timespec current               = { };
         struct tm       tmp_tm                = { };
@@ -83,9 +94,9 @@ size_t TimeStamp::recv(size_t count)
         memset(&tmp_tm, 0, sizeof tmp_tm);
         memset(tmp_strftime, 0, sizeof tmp_strftime);
 
-        for (i = 0; false == force_break && i < count; ++i) {
-                if (-1 == bseq_read(STDIN_FILENO, stamp_, tot_size_)) {
-                        force_break = true;
+        for (i = 0; i < count; ++i) {
+                if (casted_tot_size_ !=
+                    bio_base64_->read(stamp_, casted_tot_size_)) {
                         break;
                 }
                 /*
@@ -93,45 +104,62 @@ size_t TimeStamp::recv(size_t count)
                  * stdin due to the possibility of be blocked.
                  */
                 if (-1 == clock_gettime(CLOCK_REALTIME, &current)) {
-                        force_break = true;
                         break;
                 }
                 current.tv_sec = current.tv_sec - stamp_->timespec.tv_sec;
                 current.tv_nsec = current.tv_nsec - stamp_->timespec.tv_nsec;
 
                 if (NULL == localtime_r(&current.tv_sec, &tmp_tm)) {
-                        force_break = true;
                         break;
                 }
                 if (0 == strftime(tmp_strftime,
                                   sizeof tmp_strftime,
                                   "%s",
                                   &tmp_tm)) {
-                        force_break = true;
                         break;
                 }
                 fprintf(log_, "%s,%ld\n", tmp_strftime, current.tv_nsec);
         }
-        return false == force_break ? i + 1U : i;
+        return i;
 }
 
 size_t TimeStamp::send(size_t count)
 {
-        bool   force_break = false;
-        size_t i           = 0U;
+        using std::runtime_error;
 
-        for (i = 0; false == force_break && i < count; ++i) {
+        if (TimeStampMode::RECEIVE == mode_) {
+                throw runtime_error("send(): not allowed in RECEIVE mode");
+        }
+
+        size_t i                = 0U;
+        auto   casted_tot_size_ = narrow_cast<int, size_t>(tot_size_);
+
+        for (i = 0; i < count; ++i) {
                 if (-1 == clock_gettime(CLOCK_REALTIME, &(stamp_->timespec))) {
-                        force_break = true;
+                        break;
                 }
-                if (-1 == bseq_write(STDOUT_FILENO, stamp_, tot_size_)) {
-                        force_break = true;
+                if (casted_tot_size_ !=
+                    bio_base64_->write(stamp_, casted_tot_size_)) {
+                        break;
                 }
         }
-        return false == force_break ? i + 1U : i;
+        return i;
 }
 
-FILE *TimeStamp::log_control_(LogSwitch_ flip)
+/* Can only be called in constructor or destructor. */
+void TimeStamp::log_control_(LogSwitch_ flip)
+{
+        switch (flip) {
+        case LogSwitch_::OFF:
+                log_control_off_();
+                break;
+        case LogSwitch_::ON:
+                log_control_on_();
+        }
+}
+
+
+void  TimeStamp::log_control_on_()
 {
         using std::fopen;
         using std::runtime_error;
@@ -141,32 +169,50 @@ FILE *TimeStamp::log_control_(LogSwitch_ flip)
                                               " failed";
         static const char *fopen_err        = "log_control_(): fopen() failed";
 
-        switch (flip) {
-        case LogSwitch_::OFF:
-                /* log_ is an alias for stdout, do nothing. */
-                if (NULL == log_env_symbol_) {
-                        break;
-                }
-                if (NULL != log_) {
-                        fclose(log_);
-                }
-                break;
-        case LogSwitch_::ON:
+        /* Base64 BIO needs to be constructed regardless of the mode. */
+        bio_base64_ = new BIOWrapper(BIOWrapper::f_base64());
+
+        /* Set up bio_output_; again, the mode does not matter. */
+        if (NULL == log_env_symbol_) {
                 /* log_ is an alias for stdout. */
-                if (NULL == log_env_symbol_) {
-                        log_ = stdout;
-                        break;
-                } else {
-                        output_file_name = secure_getenv(log_env_symbol_);
-                        if (NULL == output_file_name) {
-                                throw runtime_error(getenv_err);
-                        }
-                        log_ = fopen(output_file_name, "w");
-                        if (NULL == log_) {
-                                throw runtime_error(fopen_err);
-                        }
+                log_ = stdout;
+                /* Transfer the ownership of log_. */
+                bio_output_ = new BIOWrapper(log_, BIO_NOCLOSE);
+        } else {
+                output_file_name = secure_getenv(log_env_symbol_);
+                if (NULL == output_file_name) {
+                        throw runtime_error(getenv_err);
                 }
+                log_ = fopen(output_file_name, "w");
+                if (NULL == log_) {
+                        throw runtime_error(fopen_err);
+                }
+                /* Transfer the ownership of log_. */
+                bio_output_ = new BIOWrapper(log_, BIO_CLOSE);
         }
-        return log_;
+
+        if (TimeStampMode::RECEIVE == mode_) {
+                bio_input_ = new BIOWrapper(stdin, BIO_NOCLOSE);
+                bio_base64_->push(*bio_input_);
+        } else if (TimeStampMode::SEND == mode_) {
+                bio_base64_->push(*bio_output_);
+        }
 }
 
+void  TimeStamp::log_control_off_()
+{
+        /*
+         * The ownership of the log_ is already transferred to
+         * BIOWrapper class, so nothing needs to be done here
+         * since the resource deallocation is the responsibility
+         * of bio_output_.
+         */
+        if (TimeStampMode::RECEIVE == mode_) {
+                bio_output_->flush();
+                delete bio_input_;
+        } else if (TimeStampMode::SEND == mode_) {
+                bio_base64_->flush();
+        }
+        delete bio_base64_;
+        delete bio_output_;
+}

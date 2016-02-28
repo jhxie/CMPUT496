@@ -35,6 +35,7 @@
 
 int main(int argc, char *argv[])
 {
+        using std::runtime_error;
         /*
          * The reason not to use enumeration instead is c++ has stronger
          * type checking than c does: static_cast between enumerator and int
@@ -44,18 +45,38 @@ int main(int argc, char *argv[])
 #define RECEIVER    'r'
 #define SENDER      's'
 #define UNSPECIFIED  0
-        Argument   argument       = {0U, 0U, NULL};
-        int        operating_mode = UNSPECIFIED;
+        Argument    argument       = {0U, 0U, NULL};
+        int         operating_mode = UNSPECIFIED;
+        const char *recv_err       = "main(): didn't receive required amount";
+        const char *send_err       = "main(): didn't send required amount";
 
         argument = argument_parse(&operating_mode, argc, argv);
-        TimeStamp  timestamp(argument.block, argument.env_symbol);
+
+        /* Force the sender write to stdout */
+        if (SENDER == operating_mode) {
+                argument.env_symbol = NULL;
+        }
 
         switch (operating_mode) {
         case RECEIVER:
-                timestamp.recv(argument.count);
-                break;
+                {
+                        TimeStamp timestamp(TimeStampMode::RECEIVE,
+                                            argument.block,
+                                            argument.env_symbol);
+                        if (argument.count != timestamp.recv(argument.count)) {
+                                throw runtime_error(recv_err);
+                        }
+                        break;
+                }
         case SENDER:
-                timestamp.send(argument.count);
+                {
+                        TimeStamp timestamp(TimeStampMode::SEND,
+                                            argument.block,
+                                            argument.env_symbol);
+                        if (argument.count != timestamp.send(argument.count)) {
+                                throw runtime_error(send_err);
+                        }
+                }
         }
         return EXIT_SUCCESS;
 }

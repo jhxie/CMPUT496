@@ -35,6 +35,7 @@
 #include <cstdio>    /* fprintf() */
 #include <cstdlib>   /* EXIT_FAILURE EXIT_SUCCESS */
 #include <string>
+#include <stdexcept> /* runtime_error */
 
 #ifdef __cplusplus
 extern "C" {
@@ -58,8 +59,8 @@ extern "C" {
 #define ENV_TIMESTAMP_OUTPUT "TIMESTAMP_OUTPUT"
 
 struct Argument {
-        uintmax_t   block;
-        uintmax_t   count;
+        size_t      block;
+        size_t      count;
         const char *env_symbol;
 };
 

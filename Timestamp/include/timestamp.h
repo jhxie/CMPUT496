@@ -44,9 +44,14 @@ enum class TimeStampMode : int {
         SEND
 };
 
+/* Only forward declaration needed in this header file. */
+class BIOWrapper;
+
 class TimeStamp final {
 public:
-        TimeStamp(size_t pad_size, const char *env_symbol = NULL);
+        TimeStamp(TimeStampMode mode,
+                  size_t        pad_size   = 0,
+                  const char   *env_symbol = NULL);
         TimeStamp()                                = delete;
         TimeStamp(const TimeStamp &)               = delete;
         TimeStamp(const TimeStamp &&)              = delete;
@@ -67,6 +72,7 @@ private:
                 OFF = 0,
                 ON
         };
+        TimeStampMode mode_;
         FILE         *log_;
         /*
          * Records the name of the environment symbol used to specify logfile
@@ -76,8 +82,13 @@ private:
         Stamp_       *stamp_;
         size_t        pad_size_;
         size_t        tot_size_;
+        BIOWrapper   *bio_base64_;
+        BIOWrapper   *bio_output_;
+        BIOWrapper   *bio_input_;
 
-        FILE *log_control_(LogSwitch_ flip);
+        void log_control_(LogSwitch_ flip);
+        void log_control_on_();
+        void log_control_off_();
 };
 
 #endif /* TIMESTAMP_H */
