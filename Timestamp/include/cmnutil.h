@@ -94,6 +94,15 @@
 #include <cstring>   /* strerror() */
 #include <stdexcept> /* runtime_error */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include <unistd.h>
+
+#ifdef __cplusplus
+}
+#endif
 /* ANSI Color Escape Sequences */
 #define ANSI_COLOR_RED     "\x1b[31m"
 #define ANSI_COLOR_GREEN   "\x1b[32m"

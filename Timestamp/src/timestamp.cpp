@@ -21,251 +21,141 @@
  *
  * @section DESCRIPTION
  *
- * Main source file of the timestamp program.
  */
-
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
 
-/* All the depedendent headers are put into a separate private header. */
-#define TSONLY
-#include "tsutil.h"
-#undef  TSONLY
+#include "cmnutil.h"
+#include "timestamp.h"
 
-int main(int argc, char *argv[])
+#include <climits>   /* SIZE_MAX */
+#include <cstring>   /* memset() */
+#include <stdexcept> /* domain_error runtime_error */
+
+TimeStamp::TimeStamp(size_t pad_size)
+        : log_{NULL},
+          pad_size_{pad_size},
+          tot_size_{sizeof(Stamp_) + pad_size_}
 {
-        using std::fprintf;
-        using std::printf;
         /*
-         * The reason not to use enumeration instead is c++ has stronger
-         * type checking than c does: static_cast between enumerator and int
-         * is potentially unsafe when used within getopt_long(), have to stick
-         * to the basics.
+         * Checks whether wrap-around behavior would occur when passed
+         * to malloc().
          */
-#define RECEIVER    'r'
-#define SENDER      's'
-#define UNSPECIFIED  0
-        int                         operating_mode   = UNSPECIFIED;
-        uintmax_t                   send_recv_count  = 0U;
-
-        send_recv_count = argument_parse(&operating_mode, argc, argv);
-        /*
-         * Rely on implicit instantiation to call template function timestamp()
-         * with type uintmax_t; note the actual returned number of timestamps
-         * written is not checked.
-         */
-        switch (operating_mode) {
-        case RECEIVER:
-                timestamp<uintmax_t>(send_recv_count, TimeStampMode::RECEIVE);
-                break;
-        case SENDER:
-                timestamp<uintmax_t>(send_recv_count, TimeStampMode::SEND);
+        if (pad_size_ > SIZE_MAX - sizeof(Stamp_)) {
+                throw std::domain_error("TimeStamp(): pad_size exceeds maximum");
         }
-        return EXIT_SUCCESS;
+
+        log_control_(LogSwitch_::ON);
+
+        stamp_ = reinterpret_cast<Stamp_ *>(std::malloc(tot_size_));
+
+        if (NULL == stamp_) {
+                throw std::runtime_error("TimeStamp(): malloc() call failed");
+        }
+
+        /*
+         * Note the trailing padding field is intentially left un-initialized
+         * to prevent potential compression algorithms used by ssh from
+         * indirectly shortening the actual length of the message.
+         */
+        std::memset(stamp_, 0, sizeof(Stamp_));
 }
 
-uintmax_t argument_parse(int *operating_mode, int argc, char *argv[])
+TimeStamp::~TimeStamp()
 {
-        using std::string;
-        int                         opt              = 0;
-        uintmax_t                   send_recv_count  = 0U;
-        /*
-         * Prohibit getopt_long() from printing error message of its own by
-         * prefixing the optstring formal parameter (TSSEND_FLAGS actual
-         * argument in this case) by a colon.
-         */
-        static const char *const    TSSEND_FLAGS     = ":c:rs";
-        /*
-         * From the manual page (section 3) of getopt(),
-         * "by default, getopt() permutes the contents of argv as it scans",
-         * so a deep copy is required here.
-         * Alternatively use strdup() and followed by a free() later on; but
-         * personally I think RAII is a better approach especially for (future)
-         * multi-process or multi-thread programs to avoid many potential bugs.
-         */
-        const string                PROGRAM_NAME     = string(argv[0]);
-        /*
-         * There is no size indicator given to getopt_long(), so an extra
-         * "empty" member is padded, similar to the convention of a c string.
-         * To maintain compatibility with c, NULL is used rather than c++11's
-         * recommendation, nullptr.
-         * Note the designated initializer is a c99 feature, but in c++ it is
-         * not standardized because POD is not encouraged to be used in c++;
-         * however gcc supports it as an extension regardless.
-         * For better readability it is kept this way with some portability
-         * sacrificed.
-         */
-        static const struct option  long_options[] = {
-                {"count",    required_argument, NULL, 'c'},
-                {"help",     no_argument,       NULL, 'h'},
-                {"receiver", no_argument,       NULL, 'r'},
-                {"sender",   no_argument,       NULL, 's'},
-                {
-                        .name    = NULL,
-                        .has_arg = 0,
-                        .flag    = NULL,
-                        .val     = 0
-                }
-        };
+        log_control_(LogSwitch_::OFF);
+        std::free(stamp_);
+}
 
-        while (-1 != (opt = getopt_long(argc,
-                                        argv,
-                                        TSSEND_FLAGS,
-                                        long_options,
-                                        NULL))) {
-                switch (opt) {
+size_t TimeStamp::recv(size_t count)
+{
+        using std::memset;
+
+        bool            force_break           = false;
+        size_t          i                     = 0U;
+        struct timespec current               = { };
+        struct tm       tmp_tm                = { };
+        char            tmp_strftime[1 << 13] = { };
+
+        memset(&current, 0, sizeof current);
+        memset(&tmp_tm, 0, sizeof tmp_tm);
+        memset(tmp_strftime, 0, sizeof tmp_strftime);
+
+        for (i = 0; false == force_break && i < count; ++i) {
+                if (-1 == bseq_read(STDIN_FILENO, stamp_, tot_size_)) {
+                        force_break = true;
+                        break;
+                }
                 /*
-                 * 'case 0:' only triggered when any one of the flag
-                 * field in the 'struct option' is set to non-NULL value;
-                 * in this program this branch is never taken.
+                 * clock_gettime() needs to be called after the read from
+                 * stdin due to the possibility of be blocked.
                  */
-                case 0:
+                if (-1 == clock_gettime(CLOCK_REALTIME, &current)) {
+                        force_break = true;
                         break;
-                case 'c':
-                        send_recv_count = count_validate(optarg);
-                        break;
-                case 'r':
-                case 's':
-                        *operating_mode = opt;
-                        break;
-                case '?':
-                        usage(PROGRAM_NAME.c_str(),
-                              EXIT_FAILURE,
-                              "There is no such option!");
-                case ':':
-                        usage(PROGRAM_NAME.c_str(),
-                              EXIT_FAILURE,
-                              "Missing argument!");
-                case 'h':
-                default:
-                        usage(PROGRAM_NAME.c_str(), EXIT_FAILURE, NULL);
                 }
-        }
+                current.tv_sec = current.tv_sec - stamp_->timespec.tv_sec;
+                current.tv_nsec = current.tv_nsec - stamp_->timespec.tv_nsec;
 
-        if (1 == argc || UNSPECIFIED == *operating_mode) {
-                usage(PROGRAM_NAME.c_str(), EXIT_FAILURE, NULL);
+                if (NULL == localtime_r(&current.tv_sec, &tmp_tm)) {
+                        force_break = true;
+                        break;
+                }
+                if (0 == strftime(tmp_strftime,
+                                  sizeof tmp_strftime,
+                                  "%s",
+                                  &tmp_tm)) {
+                        force_break = true;
+                        break;
+                }
+                fprintf(log_, "%s,%ld\n", tmp_strftime, current.tv_nsec);
         }
-
-        /*
-         * If the above branch is taken, all the code following would NEVER
-         * be executed since usage does not return to its caller.
-         */
-        if (0U == send_recv_count) {
-                usage(PROGRAM_NAME.c_str(), EXIT_FAILURE, "Invalid argument!");
-        }
-
-        if (NULL == secure_getenv(ENV_TIMESTAMP_OUTPUT)) {
-                usage(PROGRAM_NAME.c_str(),
-                      EXIT_FAILURE,
-                      "Environment variable missing!");
-        }
-        return send_recv_count;
-#undef RECEIVER
-#undef SENDER
-#undef UNSPECIFIED
+        return false == force_break ? i + 1U : i;
 }
 
-struct timespec *timestamp_manipulate(struct timespec *ts, TimeStampMode mode)
+size_t TimeStamp::send(size_t count)
 {
-        /*
-         * Buffer is declared as a char * type to avoid undefined behavior
-         * of doing pointer arithmetic on a void * type.
-         */
-        char           *buffer      = NULL;
-        struct timespec receiver_ts = { };
+        bool   force_break = false;
+        size_t i           = 0U;
 
-        memset(&receiver_ts, 0, sizeof(struct timespec));
+        for (i = 0; false == force_break && i < count; ++i) {
+                if (-1 == clock_gettime(CLOCK_REALTIME, &(stamp_->timespec))) {
+                        force_break = true;
+                }
+                if (-1 == bseq_write(STDOUT_FILENO, stamp_, tot_size_)) {
+                        force_break = true;
+                }
+        }
+        return false == force_break ? i + 1U : i;
+}
 
-        switch (mode) {
-        /*
-         * For receivers, an update to the current time is required since
-         * the above read() system call could possibly block for a long time
-         * especially across a lossy WAN.
-         */
-        case TimeStampMode::RECEIVE:
-                buffer = reinterpret_cast<char *>(&receiver_ts);
-                bseq_read(STDIN_FILENO, buffer, sizeof(struct timespec));
+FILE *TimeStamp::log_control_(LogSwitch_ flip)
+{
+        using std::fopen;
+        using std::runtime_error;
 
-                if (0 == clock_gettime(CLOCK_REALTIME, ts)) {
-                        /* Both fields are arithmetic types */
-                        ts->tv_sec = ts->tv_sec - receiver_ts.tv_sec;
-                        ts->tv_nsec = ts->tv_nsec - receiver_ts.tv_nsec;
-                } else {
-                        return NULL;
+        const char        *output_file_name = NULL;
+        static const char *getenv_err       = "log_control_(): secure_getenv()"
+                                              " failed";
+        static const char *fopen_err        = "log_control_(): fopen() failed";
+
+        switch (flip) {
+        case LogSwitch_::OFF:
+                if (NULL != log_) {
+                        fclose(log_);
                 }
                 break;
-        case TimeStampMode::SEND:
-                buffer = reinterpret_cast<char *>(ts);
-                bseq_write(STDOUT_FILENO, buffer, sizeof(struct timespec));
+        case LogSwitch_::ON:
+                output_file_name = secure_getenv(ENV_TIMESTAMP_OUTPUT);
+                if (NULL == output_file_name) {
+                        throw runtime_error(getenv_err);
+                }
+                log_ = fopen(output_file_name, "w");
+                if (NULL == log_) {
+                        throw runtime_error(fopen_err);
+                }
         }
-        return ts;
-}
-
-static uintmax_t count_validate(const char *const candidate)
-{
-        char *endptr = NULL;
-        errno = 0;
-        uintmax_t result = strtoumax(candidate, &endptr, 10);
-
-        /* Check overflow */
-        if (UINTMAX_MAX == result && ERANGE == errno) {
-                return 0U;
-        /*
-         * From the manual page of strtoumax(),
-         * "
-         * if there were no digits at all, strtoul() stores the original value
-         * of nptr in endptr (and returns 0)
-         * "
-         * so an argument with some numbers mixed-in would work in this case.
-         */
-        } else if (0U == result && endptr == candidate) {
-                return 0U;
-        }
-        return result;
-}
-
-static void usage(const char *name, int status, const char *msg)
-{
-        using std::fprintf;
-
-        if (NULL != msg) {
-                fprintf(stderr,
-                        "[" ANSI_COLOR_BLUE "Error" ANSI_COLOR_RESET "]\n"
-                        "%s\n\n",
-                        msg);
-        }
-        fprintf(stderr,
-                "[" ANSI_COLOR_BLUE "Usage" ANSI_COLOR_RESET "]\n"
-                "%s [-h] [-r | -s] [-c MESSAGE_COUNT]\n\n"
-
-                "<" ANSI_COLOR_CYAN "Receiver Mode" ANSI_COLOR_RESET ">\n"
-                "Receives messages containing timestamps from stdin "
-                ANSI_COLOR_MAGENTA "MESSAGE_COUNT" ANSI_COLOR_RESET
-                " times.\n\n"
-
-                "<" ANSI_COLOR_CYAN "Sender   Mode" ANSI_COLOR_RESET ">\n"
-                "Sends messages containing timestamps to stdout "
-                ANSI_COLOR_MAGENTA "MESSAGE_COUNT" ANSI_COLOR_RESET
-                " times.\n\n"
-#if 0
-                "simultaneously receives message from stdin and write the "
-                "result to a file\n"
-                "indicated by an environment variable named "
-                ANSI_COLOR_MAGENTA "TSSEND_OUTPUT" ANSI_COLOR_RESET ".\n\n"
-#endif
-                "[" ANSI_COLOR_BLUE "Optional Arguments" ANSI_COLOR_RESET "]\n"
-                "-h, --help\tshow this help message and exit\n"
-                "-r, --receiver\toperates in receiver mode\n"
-                "-s, --sender\toperates in sender mode\n"
-                "-c, --count\tnumber of messages to be sent\n"
-                "\n[" ANSI_COLOR_BLUE "NOTE" ANSI_COLOR_RESET "]\n"
-                "1. Environment variable "
-                ANSI_COLOR_MAGENTA ENV_TIMESTAMP_OUTPUT ANSI_COLOR_RESET
-                " needs to be set for receiver to work properly.\n"
-                "2. It will print gibberish if shell redirection isn't used"
-                " on the sender side.\n\n",
-                NULL == name ? "" : name);
-        exit(status);
+        return log_;
 }
 

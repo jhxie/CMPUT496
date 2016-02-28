@@ -40,8 +40,7 @@ extern "C" {
 }
 #endif
 
-class BIOWrapper final
-{
+class BIOWrapper final {
 public:
         /*
          * Prohibits compiler-generated default/copy/move constructors to avoid

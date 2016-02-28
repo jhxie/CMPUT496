@@ -56,52 +56,36 @@ extern "C" {
  * "BSD Sockets: A Quick And Dirty Primer" by Jim Frost.
  */
 template<typename IntType>
-auto timestamp(IntType rs_count, TimeStampMode mode) -> decltype(rs_count + 1)
+IntType timestamp(size_t pad_size, IntType rs_count, TimeStampMode mode)
 {
         using std::fclose;
-        using std::fopen;
+        using std::free;
         using std::fprintf;
+        using std::malloc;
 
-        IntType         i                     = 0;
-        bool            force_break           = false;
-        FILE           *output_file           = NULL;
-        const char     *output_file_name      = NULL;
-        struct timespec current               = { };
-        struct tm       tmp_tm                = { };
-        char            tmp_strftime[1 << 13] = { };
+        IntType        i                     = 0;
+        bool           force_break           = false;
+        struct tm      tmp_tm                = { };
+        char           tmp_strftime[1 << 13] = { };
+        TimeStamp     *current               = NULL;
+        FILE          *log_file              = timestamp_log_setup(mode);
 
-        memset(&current, 0, sizeof current);
+        if (NULL == log_file) {
+                force_break = true;
+        }
+
+        memset(current, 0, (sizeof current) + pad_size);
         memset(&tmp_tm, 0, sizeof tmp_tm);
         memset(tmp_strftime, 0, sizeof tmp_strftime);
 
-        switch (mode) {
-        case TimeStampMode::RECEIVE:
-                output_file_name = secure_getenv(ENV_TIMESTAMP_OUTPUT);
-                if (NULL == output_file_name) {
-                        force_break = true;
-                        break;
-                }
-                output_file = fopen(output_file_name, "w");
-                if (NULL == output_file) {
-                        force_break = true;
-                        break;
-                }
-                break;
-        case TimeStampMode::SEND:
-                        break;
-        }
-
         for (i = 0; false == force_break && i < rs_count; ++i) {
-                if (-1 == clock_gettime(CLOCK_REALTIME, &current)) {
-                        force_break = true;
-                        break;
-                }
-                if (NULL == timestamp_manipulate(&current, mode)) {
+                if (NULL == timestamp_manipulate(current, mode)) {
                         force_break = true;
                         break;
                 }
                 if (TimeStampMode::RECEIVE == mode) {
-                        if (NULL == localtime_r(&current.tv_sec, &tmp_tm)) {
+                        if (NULL == localtime_r(&current->timespec.tv_sec,
+                                                &tmp_tm)) {
                                 force_break = true;
                                 break;
                         }
@@ -112,16 +96,17 @@ auto timestamp(IntType rs_count, TimeStampMode mode) -> decltype(rs_count + 1)
                                 force_break = true;
                                 break;
                         }
-                        fprintf(output_file,
+                        fprintf(log_file,
                                 "%s,%ld\n",
                                 tmp_strftime,
-                                current.tv_nsec);
+                                current->timespec.tv_nsec);
                 }
         }
 
-        if (NULL != output_file) {
-                fclose(output_file);
+        if (NULL != log_file) {
+                fclose(log_file);
         }
+        free(current);
         return false == force_break ? rs_count + 1 : rs_count;
 }
 
