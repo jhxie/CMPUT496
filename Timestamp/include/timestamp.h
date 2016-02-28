@@ -86,9 +86,10 @@ private:
         BIOWrapper   *bio_output_;
         BIOWrapper   *bio_input_;
 
-        void log_control_(LogSwitch_ flip);
-        void log_control_on_();
-        void log_control_off_();
+        void     log_control_(LogSwitch_ flip);
+        void     log_control_on_();
+        void     log_control_off_();
+        timespec timespec_diff_(const timespec *end, const timespec *start);
 };
 
 #endif /* TIMESTAMP_H */

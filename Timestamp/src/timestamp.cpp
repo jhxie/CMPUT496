@@ -106,8 +106,8 @@ size_t TimeStamp::recv(size_t count)
                 if (-1 == clock_gettime(CLOCK_REALTIME, &current)) {
                         break;
                 }
-                current.tv_sec = current.tv_sec - stamp_->timespec.tv_sec;
-                current.tv_nsec = current.tv_nsec - stamp_->timespec.tv_nsec;
+
+                current = timespec_diff_(&current, &(stamp_->timespec));
 
                 if (NULL == localtime_r(&current.tv_sec, &tmp_tm)) {
                         break;
@@ -215,4 +215,22 @@ void  TimeStamp::log_control_off_()
         }
         delete bio_base64_;
         delete bio_output_;
+}
+
+/*
+ * Modified from the example from:
+ * http://www.guyrutenberg.com/2007/09/22/profiling-code-using-clock_gettime/
+ */
+timespec TimeStamp::timespec_diff_(const timespec *end, const timespec *start)
+{
+        timespec temp;
+
+        if (0 > (end->tv_nsec - start->tv_nsec)) {
+                temp.tv_sec = end->tv_sec - start->tv_sec - 1;
+                temp.tv_nsec = 1000000000 + end->tv_nsec - start->tv_nsec;
+        } else {
+                temp.tv_sec = end->tv_sec - start->tv_sec;
+                temp.tv_nsec = end->tv_nsec - start->tv_nsec;
+        }
+        return temp;
 }
