@@ -33,8 +33,9 @@
 #include <cstring>   /* memset() */
 #include <stdexcept> /* domain_error runtime_error */
 
-TimeStamp::TimeStamp(size_t pad_size)
+TimeStamp::TimeStamp(size_t pad_size, const char *env_symbol)
         : log_{NULL},
+          log_env_symbol_{env_symbol},
           pad_size_{pad_size},
           tot_size_{sizeof(Stamp_) + pad_size_}
 {
@@ -142,18 +143,28 @@ FILE *TimeStamp::log_control_(LogSwitch_ flip)
 
         switch (flip) {
         case LogSwitch_::OFF:
+                /* log_ is an alias for stdout, do nothing. */
+                if (NULL == log_env_symbol_) {
+                        break;
+                }
                 if (NULL != log_) {
                         fclose(log_);
                 }
                 break;
         case LogSwitch_::ON:
-                output_file_name = secure_getenv(ENV_TIMESTAMP_OUTPUT);
-                if (NULL == output_file_name) {
-                        throw runtime_error(getenv_err);
-                }
-                log_ = fopen(output_file_name, "w");
-                if (NULL == log_) {
-                        throw runtime_error(fopen_err);
+                /* log_ is an alias for stdout. */
+                if (NULL == log_env_symbol_) {
+                        log_ = stdout;
+                        break;
+                } else {
+                        output_file_name = secure_getenv(log_env_symbol_);
+                        if (NULL == output_file_name) {
+                                throw runtime_error(getenv_err);
+                        }
+                        log_ = fopen(output_file_name, "w");
+                        if (NULL == log_) {
+                                throw runtime_error(fopen_err);
+                        }
                 }
         }
         return log_;

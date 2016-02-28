@@ -44,11 +44,11 @@ int main(int argc, char *argv[])
 #define RECEIVER    'r'
 #define SENDER      's'
 #define UNSPECIFIED  0
-        Argument   argument       = {0U, 0U};
+        Argument   argument       = {0U, 0U, NULL};
         int        operating_mode = UNSPECIFIED;
 
         argument = argument_parse(&operating_mode, argc, argv);
-        TimeStamp  timestamp(argument.block);
+        TimeStamp  timestamp(argument.block, argument.env_symbol);
 
         switch (operating_mode) {
         case RECEIVER:
@@ -64,8 +64,9 @@ Argument argument_parse(int *operating_mode, int argc, char *argv[])
 {
         using std::string;
 
+        const char                 *env_argument     = NULL;
         int                         opt              = 0;
-        Argument                    argument         = { 0U, 0U };
+        Argument                    argument         = {0U, 0U, NULL};
         /*
          * Prohibit getopt_long() from printing error message of its own by
          * prefixing the optstring formal parameter (TSSEND_FLAGS actual
@@ -155,11 +156,18 @@ Argument argument_parse(int *operating_mode, int argc, char *argv[])
                 usage(PROGRAM_NAME.c_str(), EXIT_FAILURE, "Invalid argument!");
         }
 
-        if (NULL == secure_getenv(ENV_TIMESTAMP_OUTPUT)) {
-                usage(PROGRAM_NAME.c_str(),
-                      EXIT_FAILURE,
-                      "Environment variable missing!");
+        /*
+         * If the environment variable is not set,
+         * let TimeStamp fall back to print to stdout instead.
+         */
+        env_argument = secure_getenv(ENV_TIMESTAMP_OUTPUT);
+
+        if (NULL == env_argument) {
+                argument.env_symbol= NULL;
+        } else {
+                argument.env_symbol = ENV_TIMESTAMP_OUTPUT;
         }
+
         return argument;
 #undef RECEIVER
 #undef SENDER
@@ -205,12 +213,18 @@ static void usage(const char *name, int status, const char *msg)
                 "[-b BLOCK_PADDING_COUNT] [-c MESSAGE_COUNT]\n\n"
 
                 "<" ANSI_COLOR_CYAN "Receiver Mode" ANSI_COLOR_RESET ">\n"
-                "Receives messages containing timestamps from stdin "
+                "Receives messages containing timestamps padded with "
+                ANSI_COLOR_MAGENTA "BLOCK_PADDING_COUNT" ANSI_COLOR_RESET
+                " bytes\n"
+                "from stdin "
                 ANSI_COLOR_MAGENTA "MESSAGE_COUNT" ANSI_COLOR_RESET
                 " times.\n\n"
 
                 "<" ANSI_COLOR_CYAN "Sender   Mode" ANSI_COLOR_RESET ">\n"
-                "Sends messages containing timestamps to stdout "
+                "Sends messages containing timestamps padded with "
+                ANSI_COLOR_MAGENTA "BLOCK_PADDING_COUNT" ANSI_COLOR_RESET
+                " bytes\n"
+                "to stdout "
                 ANSI_COLOR_MAGENTA "MESSAGE_COUNT" ANSI_COLOR_RESET
                 " times.\n\n"
 #if 0
@@ -229,7 +243,8 @@ static void usage(const char *name, int status, const char *msg)
                 "\n[" ANSI_COLOR_BLUE "NOTE" ANSI_COLOR_RESET "]\n"
                 "1. Environment variable "
                 ANSI_COLOR_MAGENTA ENV_TIMESTAMP_OUTPUT ANSI_COLOR_RESET
-                " needs to be set for receiver to work properly.\n"
+                " needs to be set for the receiver to\n"
+                "print to log file.\n\n"
                 "2. It will print gibberish if shell redirection isn't used"
                 " on the sender side.\n\n",
                 NULL == name ? "" : name);

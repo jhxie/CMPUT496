@@ -38,6 +38,8 @@ set(CMAKE_CXX_STANDARD 11)
 # i.e. make the c99 standard a requirement
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# test the existence of openssl
+find_package(OpenSSL REQUIRED)
 # test the existence of pthread run-time on the system
 find_package(Threads REQUIRED)
 if(NOT CMAKE_THREAD_LIBS_INIT)
@@ -53,6 +55,7 @@ endif()
 # common header(s) reside(s) in the include directory in the
 # relative root directory of this project
 include_directories(
+	OPENSSL_INCLUDE_DIR
 	${PROJECT_SOURCE_DIR}/include
 	${PROJECT_SOURCE_DIR}/template
 	)

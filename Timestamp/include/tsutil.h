@@ -50,9 +50,17 @@ extern "C" {
 #include "cmnutil.h"
 #include "timestamp.h"
 
+/**
+ * @def ENV_TIMESTAMP_OUTPUT
+ * @brief Records the name of the environment symbol used to specify logfile
+ *        on the receiver side.
+ */
+#define ENV_TIMESTAMP_OUTPUT "TIMESTAMP_OUTPUT"
+
 struct Argument {
-        uintmax_t block;
-        uintmax_t count;
+        uintmax_t   block;
+        uintmax_t   count;
+        const char *env_symbol;
 };
 
 static Argument argument_parse(int *operating_mode, int argc, char *argv[]);

@@ -21,19 +21,11 @@
  *
  * @section DESCRIPTION
  *
- * Public header used to export an external linkage function used by
- * the template function timestamp().
+ * Public interface header for the timestamp class.
  */
 
 #ifndef TIMESTAMP_H
 #define TIMESTAMP_H
-
-/**
- * @def ENV_TIMESTAMP_OUTPUT
- * @brief Records the name of the environment symbol used to specify logfile
- *        on the receiver side.
- */
-#define ENV_TIMESTAMP_OUTPUT "TIMESTAMP_OUTPUT"
 
 #include <cstdio>
 
@@ -54,11 +46,10 @@ enum class TimeStampMode : int {
 
 class TimeStamp final {
 public:
+        TimeStamp(size_t pad_size, const char *env_symbol = NULL);
         TimeStamp()                                = delete;
         TimeStamp(const TimeStamp &)               = delete;
         TimeStamp(const TimeStamp &&)              = delete;
-        /* Prohibits implicit invocation of conversion constructor. */
-        explicit TimeStamp(size_t pad_size);
         TimeStamp &operator = (const TimeStamp &)  = delete;
         TimeStamp &operator = (const TimeStamp &&) = delete;
         ~TimeStamp();
@@ -76,15 +67,17 @@ private:
                 OFF = 0,
                 ON
         };
-        FILE     *log_;
-        Stamp_   *stamp_;
-        size_t   pad_size_;
-        size_t   tot_size_;
+        FILE         *log_;
+        /*
+         * Records the name of the environment symbol used to specify logfile
+         * on the receiver side.
+         */
+        const char   *log_env_symbol_;
+        Stamp_       *stamp_;
+        size_t        pad_size_;
+        size_t        tot_size_;
 
         FILE *log_control_(LogSwitch_ flip);
 };
 
-struct timespec *timestamp_manipulate(TimeStamp *ts, TimeStampMode mode);
-struct timespec *timestamp_send(TimeStamp *ts, size_t pad_size);
-FILE *timestamp_log_setup(TimeStampMode mode)__attribute__((warn_unused_result));
 #endif /* TIMESTAMP_H */
