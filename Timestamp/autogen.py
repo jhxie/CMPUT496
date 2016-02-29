@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 """
-This script automates the build process.
+This script automates the build process of the timestamp program as well as
+generates a one way RTT plot based on its output.
 To avoid potential incompatibility with different shells (bash ksh tcsh, etc),
 python is used rather than usual shell scripts.
 """
@@ -26,7 +27,8 @@ def autoGen():
     # '-B' specifies the build directory
     # '-H' specifies the source directory
     cmakeCommands = ["cmake", "-B" + buildDirectory, "-H."]
-    makeCommands = ["make", "-j", logicalCPUCount, "-C", buildDirectory]
+    makeCommands = ["make", "-j", logicalCPUCount,
+                    "-C", buildDirectory, "install"]
 
     if "posix" != os.name:
         sys.exit("This script is only mean to be used on POSIX systems.")

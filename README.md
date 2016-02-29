@@ -70,9 +70,11 @@ cd Timestamp
 mkdir build
 cmake -Bbuild -H.
 make -j5 -C build
+sudo make -C build install
 ```
 where the *5* in the make invocation stands for the total number of CPUs (or
-CPU cores) plus one; the final compiled binary will reside in build/src/.
+CPU cores) plus one; the final compiled binary will reside in *build/src/* in
+addition to */usr/bin/*.
 
 ### Documentation
 Since this is a prototype program (at least for now), lots of documentation are
