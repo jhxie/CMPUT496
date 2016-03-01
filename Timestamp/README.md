@@ -21,7 +21,7 @@ to stdout (which is the default behavior):
 ```bash
 export TIMESTAMP_OUTPUT=logfile.csv
 ```
-note the output is not strictly conforming to the format specified by IETF
+note the output does not strictly conform to the format specified by IETF
 [comma-separated values](https://tools.ietf.org/html/rfc4180.html) definition
 because the line delimeter used is actually LF (no carriage return, as
 commonly seen to be used on windows machines).
@@ -36,16 +36,20 @@ timestamps with 4096 padding bytes each:
 ```bash
 ts -s -c 10 -b 4096 | ts -r -c 10 -b 4096
 ```
-the report (csv) would be recorded in the environment variable described by
-**TIMESTAMP_OUTPUT** if it is defined.
+the report (csv) would be recorded in the file designated by the
+**TIMESTAMP_OUTPUT** environment variable if it is defined.
 
 To execute the sender and receiver on two different hosts (same argument as
 explained above) across an *SSH* channel:
 ```bash
 ts -s -c 10 -b 4096 | ssh joe@ohaton.cs.ualberta.ca ts -r -c 10 -b 4096
 ```
-*joe* is the username for the remote host, you have to execute:
+*joe* is the username for the remote host *ohaton.cs.ualberta.ca*, remember you
+have to execute:
 ```bash
+mkdir build
+cmake -Bbuild -H.
+make -j5 -C build
 sudo make -C build install
 ```
 on both machines; otherwise the remote host will not be able to find the

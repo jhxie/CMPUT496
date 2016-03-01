@@ -54,7 +54,7 @@ public:
         ~BIOWrapper();
 
         int flush();
-        BIO *pop() const                                 = delete;
+        BIO *pop() const;
         BIO *push(BIO *append) const;
         /*
          * OpenSSL version 1.0.2e still uses int rather than size_t

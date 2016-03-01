@@ -32,34 +32,34 @@
 
 #include <climits>   /* SIZE_MAX */
 #include <cstring>   /* memset() */
-#include <stdexcept> /* domain_error runtime_error */
+#include <stdexcept> /* overflow_error runtime_error */
 
-TimeStamp::TimeStamp(TimeStampMode mode,
-                     size_t        pad_size,
-                     const char   *env_symbol)
-        : mode_{mode},
-          log_{NULL},
-          log_env_symbol_{env_symbol},
-          pad_size_{pad_size},
-          tot_size_{sizeof(Stamp_) + pad_size_},
-          bio_base64_{NULL},
-          bio_output_{NULL},
-          bio_input_{NULL}
+TimeStamp::TimeStamp(size_t pad_size, FILE *input, FILE *output, FILE *log)
+        :
+        pad_size_{pad_size},
+        tot_size_{sizeof(Stamp_) + pad_size_},
+        input_{input},
+        output_{output},
+        log_{log},
+        stamp_{NULL},
+        bio_base64_{NULL}
 {
+        using std::overflow_error;
+        using std::runtime_error;
         /*
          * Checks whether wrap-around behavior would occur when passed
          * to malloc().
          */
         if (pad_size_ > SIZE_MAX - sizeof(Stamp_)) {
-                throw std::domain_error("TimeStamp(): pad_size exceeds maximum");
+                throw overflow_error("TimeStamp(): pad_size exceeds maximum");
         }
 
-        log_control_(LogSwitch_::ON);
+        io_control_(LogSwitch_::ON);
 
         stamp_ = reinterpret_cast<Stamp_ *>(std::malloc(tot_size_));
 
         if (NULL == stamp_) {
-                throw std::runtime_error("TimeStamp(): malloc() call failed");
+                throw runtime_error("TimeStamp(): malloc() call failed");
         }
         /*
          * Note the trailing padding field is intentially left un-initialized
@@ -71,25 +71,30 @@ TimeStamp::TimeStamp(TimeStampMode mode,
 
 TimeStamp::~TimeStamp()
 {
-        log_control_(LogSwitch_::OFF);
+        io_control_(LogSwitch_::OFF);
         std::free(stamp_);
 }
 
-size_t TimeStamp::recv(size_t count)
+/*
+ * Reveives timestamps 'count' times from 'input_' and record result to 'log_'.
+ */
+TimeStamp &TimeStamp::operator << (const size_t count)
 {
         using std::memset;
         using std::runtime_error;
 
-        if (TimeStampMode::SEND == mode_) {
-                throw runtime_error("recv(): not allowed in SEND mode");
-        }
-
         auto            casted_tot_size_ = narrow_cast<int, size_t>(tot_size_);
-        size_t          i                     = 0U;
-        struct timespec current               = { };
-        struct tm       tmp_tm                = { };
         char            tmp_strftime[1 << 13] = { };
 
+        size_t           i          = 0U;
+        FILE            *input_file = (NULL == input_) ? stdin : input_;
+        FILE            *log_file   = (NULL == log_) ? stdout : log_;
+        struct timespec  current    = { };
+        struct tm        tmp_tm     = { };
+        BIOWrapper       bio_input(input_file, BIO_NOCLOSE);
+
+        /* Build the chain of the form bio_base64_--bio_input. */
+        bio_base64_->push(bio_input);
         memset(&current, 0, sizeof current);
         memset(&tmp_tm, 0, sizeof tmp_tm);
         memset(tmp_strftime, 0, sizeof tmp_strftime);
@@ -118,21 +123,31 @@ size_t TimeStamp::recv(size_t count)
                                   &tmp_tm)) {
                         break;
                 }
-                fprintf(log_, "%s,%ld\n", tmp_strftime, current.tv_nsec);
+                fprintf(log_file, "%s,%ld\n", tmp_strftime, current.tv_nsec);
         }
-        return i;
+
+        fflush(log_file);
+        /* Removes the 'bio_input' from the chain. */
+        bio_input.pop();
+
+        if (count != i) {
+                throw runtime_error("TimeStamp::operator << : "
+                                    "failed to receive required amount");
+        }
+        return *this;
 }
 
-size_t TimeStamp::send(size_t count)
+/* Send timestamps 'count' times to 'output_'. */
+TimeStamp &TimeStamp::operator >> (const size_t count)
 {
         using std::runtime_error;
 
-        if (TimeStampMode::RECEIVE == mode_) {
-                throw runtime_error("send(): not allowed in RECEIVE mode");
-        }
+        auto       casted_tot_size_ = narrow_cast<int, size_t>(tot_size_);
+        size_t     i                = 0U;
+        FILE      *output_file      = (NULL == output_) ? stdout : output_;
+        BIOWrapper bio_output(output_file, BIO_NOCLOSE);
 
-        size_t i                = 0U;
-        auto   casted_tot_size_ = narrow_cast<int, size_t>(tot_size_);
+        bio_base64_->push(bio_output);
 
         for (i = 0; i < count; ++i) {
                 if (-1 == clock_gettime(CLOCK_REALTIME, &(stamp_->timespec))) {
@@ -143,23 +158,37 @@ size_t TimeStamp::send(size_t count)
                         break;
                 }
         }
-        return i;
+
+        bio_base64_->flush();
+        /* Removes the 'bio_output' from the chain. */
+        bio_output.pop();
+
+        if (count != i) {
+                throw runtime_error("TimeStamp::operator >> : "
+                                    "failed to send required amount");
+        }
+        return *this;
 }
 
 /* Can only be called in constructor or destructor. */
-void TimeStamp::log_control_(LogSwitch_ flip)
+void TimeStamp::io_control_(LogSwitch_ flip)
 {
         switch (flip) {
         case LogSwitch_::OFF:
-                log_control_off_();
+                for (auto file : {input_, output_, log_}) {
+                        if (NULL != file) {
+                                std::fclose(file);
+                        }
+                }
+                delete bio_base64_;
                 break;
         case LogSwitch_::ON:
-                log_control_on_();
+                bio_base64_ = new BIOWrapper(BIOWrapper::f_base64());
         }
 }
 
-
-void  TimeStamp::log_control_on_()
+#if 0
+void  TimeStamp::io_control_on_()
 {
         using std::fopen;
         using std::runtime_error;
@@ -199,7 +228,7 @@ void  TimeStamp::log_control_on_()
         }
 }
 
-void  TimeStamp::log_control_off_()
+void TimeStamp::io_control_off_()
 {
         /*
          * The ownership of the log_ is already transferred to
@@ -216,21 +245,21 @@ void  TimeStamp::log_control_off_()
         delete bio_base64_;
         delete bio_output_;
 }
-
+#endif
 /*
  * Modified from the example from:
  * http://www.guyrutenberg.com/2007/09/22/profiling-code-using-clock_gettime/
  */
 timespec TimeStamp::timespec_diff_(const timespec *end, const timespec *start)
 {
-        timespec temp;
+        timespec result;
 
         if (0 > (end->tv_nsec - start->tv_nsec)) {
-                temp.tv_sec = end->tv_sec - start->tv_sec - 1;
-                temp.tv_nsec = 1000000000 + end->tv_nsec - start->tv_nsec;
+                result.tv_sec = end->tv_sec - start->tv_sec - 1;
+                result.tv_nsec = 1000000000 + end->tv_nsec - start->tv_nsec;
         } else {
-                temp.tv_sec = end->tv_sec - start->tv_sec;
-                temp.tv_nsec = end->tv_nsec - start->tv_nsec;
+                result.tv_sec = end->tv_sec - start->tv_sec;
+                result.tv_nsec = end->tv_nsec - start->tv_nsec;
         }
-        return temp;
+        return result;
 }

@@ -49,18 +49,36 @@ class BIOWrapper;
 
 class TimeStamp final {
 public:
-        TimeStamp(TimeStampMode mode,
-                  size_t        pad_size   = 0,
-                  const char   *env_symbol = NULL);
-        TimeStamp()                                = delete;
+        /*
+         * Note the log is only used when receive something:
+         * the recorded one-way latency will go to this file.
+         * 'input' and 'output' stand for where to read the
+         * incoming message, where to write the outgoing message,
+         * respectively.
+         *
+         * This one also acts as a default constructor:
+         * in this case 'input' is stdin for the overloaded
+         * 'operator <<', 'output' is stdout for the overloaded
+         * 'operator >>', 'log' is stdout.
+         *
+         * Note the class DOES take ownership for the 3 'FILE *'
+         * parameters passed-in, so the caller DOES NOT need to
+         * worry about freeing them.
+         */
+        TimeStamp(size_t  pad_size  = 0,
+                  FILE   *input     = NULL,
+                  FILE   *output    = NULL,
+                  FILE   *log       = NULL);
         TimeStamp(const TimeStamp &)               = delete;
         TimeStamp(const TimeStamp &&)              = delete;
         TimeStamp &operator = (const TimeStamp &)  = delete;
         TimeStamp &operator = (const TimeStamp &&) = delete;
         ~TimeStamp();
 
-        size_t recv(size_t count);
-        size_t send(size_t count);
+        /* Reveives from 'input_' 'count' times of timestamp plus padding. */
+        TimeStamp &operator << (const size_t count);
+        /* Sends to 'output_' 'count' times of timestamp plus padding. */
+        TimeStamp &operator >> (const size_t count);
 
 private:
         /* data */
@@ -72,23 +90,17 @@ private:
                 OFF = 0,
                 ON
         };
-        TimeStampMode mode_;
-        FILE         *log_;
-        /*
-         * Records the name of the environment symbol used to specify logfile
-         * on the receiver side.
-         */
-        const char   *log_env_symbol_;
-        Stamp_       *stamp_;
         size_t        pad_size_;
         size_t        tot_size_;
+        FILE         *input_;
+        FILE         *output_;
+        FILE         *log_;
+        Stamp_       *stamp_;
         BIOWrapper   *bio_base64_;
-        BIOWrapper   *bio_output_;
-        BIOWrapper   *bio_input_;
 
-        void     log_control_(LogSwitch_ flip);
-        void     log_control_on_();
-        void     log_control_off_();
+        void     io_control_(LogSwitch_ flip);
+        void     io_control_on_();
+        void     io_control_off_();
         timespec timespec_diff_(const timespec *end, const timespec *start);
 };
 

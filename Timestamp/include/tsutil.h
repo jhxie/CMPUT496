@@ -61,11 +61,11 @@ extern "C" {
 struct Argument {
         size_t      block;
         size_t      count;
-        const char *env_symbol;
+        const char *env_output_file;
 };
 
 static Argument argument_parse(int *operating_mode, int argc, char *argv[]);
-static uintmax_t number_validate(const char *const candidate);
-static void usage(const char *name, int status, const char *msg = NULL);
+static size_t   number_validate(const char *const candidate);
+static void     usage(const char *name, int status, const char *msg = NULL);
 
 #endif /* TSUTIL_H */

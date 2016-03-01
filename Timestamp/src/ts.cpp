@@ -35,7 +35,6 @@
 
 int main(int argc, char *argv[])
 {
-        using std::runtime_error;
         /*
          * The reason not to use enumeration instead is c++ has stronger
          * type checking than c does: static_cast between enumerator and int
@@ -47,36 +46,26 @@ int main(int argc, char *argv[])
 #define UNSPECIFIED  0
         Argument    argument       = {0U, 0U, NULL};
         int         operating_mode = UNSPECIFIED;
-        const char *recv_err       = "main(): didn't receive required amount";
-        const char *send_err       = "main(): didn't send required amount";
+        FILE       *user_log       = NULL;
 
         argument = argument_parse(&operating_mode, argc, argv);
 
-        /* Force the sender write to stdout */
-        if (SENDER == operating_mode) {
-                argument.env_symbol = NULL;
+        if (NULL != argument.env_output_file) {
+                user_log = fopen(argument.env_output_file, "w");
         }
+
+        TimeStamp   timestamp(argument.block, NULL, NULL, user_log);
 
         switch (operating_mode) {
         case RECEIVER:
-                {
-                        TimeStamp timestamp(TimeStampMode::RECEIVE,
-                                            argument.block,
-                                            argument.env_symbol);
-                        if (argument.count != timestamp.recv(argument.count)) {
-                                throw runtime_error(recv_err);
-                        }
-                        break;
-                }
+                timestamp << argument.count;
+                break;
         case SENDER:
-                {
-                        TimeStamp timestamp(TimeStampMode::SEND,
-                                            argument.block,
-                                            argument.env_symbol);
-                        if (argument.count != timestamp.send(argument.count)) {
-                                throw runtime_error(send_err);
-                        }
-                }
+                timestamp >> argument.count;
+        }
+
+        if (NULL != user_log) {
+                std::fclose(user_log);
         }
         return EXIT_SUCCESS;
 }
@@ -85,7 +74,6 @@ Argument argument_parse(int *operating_mode, int argc, char *argv[])
 {
         using std::string;
 
-        const char                 *env_argument     = NULL;
         int                         opt              = 0;
         Argument                    argument         = {0U, 0U, NULL};
         /*
@@ -181,13 +169,7 @@ Argument argument_parse(int *operating_mode, int argc, char *argv[])
          * If the environment variable is not set,
          * let TimeStamp fall back to print to stdout instead.
          */
-        env_argument = secure_getenv(ENV_TIMESTAMP_OUTPUT);
-
-        if (NULL == env_argument) {
-                argument.env_symbol= NULL;
-        } else {
-                argument.env_symbol = ENV_TIMESTAMP_OUTPUT;
-        }
+        argument.env_output_file = secure_getenv(ENV_TIMESTAMP_OUTPUT);
 
         return argument;
 #undef RECEIVER
@@ -195,7 +177,7 @@ Argument argument_parse(int *operating_mode, int argc, char *argv[])
 #undef UNSPECIFIED
 }
 
-static uintmax_t number_validate(const char *const candidate)
+static size_t number_validate(const char *const candidate)
 {
         char *endptr = NULL;
         errno = 0;
@@ -215,7 +197,7 @@ static uintmax_t number_validate(const char *const candidate)
         } else if (0U == result && endptr == candidate) {
                 return 0U;
         }
-        return result;
+        return narrow_cast<size_t, uintmax_t>(result);
 }
 
 static void usage(const char *name, int status, const char *msg)

@@ -61,6 +61,11 @@ int BIOWrapper::flush()
         return BIO_flush(this->bio_handle_);
 }
 
+BIO *BIOWrapper::pop() const
+{
+        return BIO_pop(this->bio_handle_);
+}
+
 BIO *BIOWrapper::push(BIO *append) const
 {
         return BIO_push(this->bio_handle_, append);
