@@ -64,9 +64,10 @@ int main(int argc, char *argv[])
                 timestamp >> argument.count;
         }
 
-        if (NULL != user_log) {
-                std::fclose(user_log);
-        }
+        /*
+         * No need to close 'user_log' since ownership is transferred to
+         * the timestamp instance.
+         */
         return EXIT_SUCCESS;
 }
 
