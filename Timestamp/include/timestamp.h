@@ -99,8 +99,10 @@ private:
         BIOWrapper   *bio_base64_;
 
         void     io_control_(LogSwitch_ flip);
+#if 0
         void     io_control_on_();
         void     io_control_off_();
+#endif
         timespec timespec_diff_(const timespec *end, const timespec *start);
 };
 

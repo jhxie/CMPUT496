@@ -31,6 +31,7 @@
 #include "timestamp.h"
 
 #include <climits>   /* SIZE_MAX */
+#include <cstdio>    /* fileno() */
 #include <cstring>   /* memset() */
 #include <stdexcept> /* overflow_error runtime_error */
 
@@ -173,10 +174,27 @@ TimeStamp &TimeStamp::operator >> (const size_t count)
 /* Can only be called in constructor or destructor. */
 void TimeStamp::io_control_(LogSwitch_ flip)
 {
+        /*
+         * This nested fileno() switch check is required if the constructor
+         * is called in a fashion like:
+         * TimeStamp timestamp(0, stdin, stdout, stdout)
+         * without the check the program would hang forever.
+         */
         switch (flip) {
         case LogSwitch_::OFF:
                 for (auto file : {input_, output_, log_}) {
-                        if (NULL != file) {
+                        /* Prevent calling fileno() on NULL. */
+                        if (NULL == file) {
+                                continue;
+                        }
+                        switch (fileno(file)) {
+                        case STDIN_FILENO:
+                                break;
+                        case STDOUT_FILENO:
+                                break;
+                        case STDERR_FILENO:
+                                break;
+                        default:
                                 std::fclose(file);
                         }
                 }
