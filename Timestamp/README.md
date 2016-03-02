@@ -1,5 +1,5 @@
 # Timestamp
-This prototype is composed of a single program, *timestamp*, that is capable of
+*timestamp*, a ~~useless~~ simple one-way *ping* like clone that is capable of
 operating in either sender or receiver mode (not both, if both options are
 given, the options that come last would be the actual mode) depends on the
 arguments given.
