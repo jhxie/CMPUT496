@@ -44,6 +44,9 @@ enum class TimeStampMode : int {
         SEND
 };
 
+/* Only forward declaration needed in this header file. */
+class BIOWrapper;
+
 class TimeStamp final {
 public:
         /*
@@ -93,6 +96,7 @@ private:
         FILE         *output_;
         FILE         *log_;
         Stamp_       *stamp_;
+        BIOWrapper   *bio_base64_;
 
         void     io_control_(LogSwitch_ flip);
 #if 0

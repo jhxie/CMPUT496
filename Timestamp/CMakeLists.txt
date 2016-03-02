@@ -39,25 +39,25 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # test the existence of openssl
-#find_package(OpenSSL REQUIRED)
+find_package(OpenSSL REQUIRED)
 # test the existence of pthread run-time on the system
-#find_package(Threads REQUIRED)
-#if(NOT CMAKE_THREAD_LIBS_INIT)
-#	message(FATAL_ERROR "Pthread must be supported on the system!")
-#else()
-#	# for systems that have multiple thread libraries support,
-#	# select pthread as the preferred implementation to link to
-#	if(NOT CMAKE_USE_PTHREADS_INIT)
-#		set(CMAKE_THREAD_PREFER_PTHREAD ON)
-#	endif()
-#endif()
+find_package(Threads REQUIRED)
+if(NOT CMAKE_THREAD_LIBS_INIT)
+	message(FATAL_ERROR "Pthread must be supported on the system!")
+else()
+	# for systems that have multiple thread libraries support,
+	# select pthread as the preferred implementation to link to
+	if(NOT CMAKE_USE_PTHREADS_INIT)
+		set(CMAKE_THREAD_PREFER_PTHREAD ON)
+	endif()
+endif()
 
 # common header(s) reside(s) in the include directory in the
 # relative root directory of this project
 include_directories(
-	#OPENSSL_INCLUDE_DIR
+	OPENSSL_INCLUDE_DIR
 	${PROJECT_SOURCE_DIR}/include
-	#${PROJECT_SOURCE_DIR}/template
+	${PROJECT_SOURCE_DIR}/template
 	)
 
 add_subdirectory(src)

@@ -42,7 +42,8 @@ TimeStamp::TimeStamp(size_t pad_size, FILE *input, FILE *output, FILE *log)
         input_{input},
         output_{output},
         log_{log},
-        stamp_{NULL}
+        stamp_{NULL},
+        bio_base64_{NULL}
 {
         using std::overflow_error;
         using std::runtime_error;
@@ -91,15 +92,17 @@ TimeStamp &TimeStamp::operator << (const size_t count)
         FILE            *log_file   = (NULL == log_) ? stdout : log_;
         struct timespec  current    = { };
         struct tm        tmp_tm     = { };
+        BIOWrapper       bio_input(input_file, BIO_NOCLOSE);
 
+        /* Build the chain of the form bio_base64_--bio_input. */
+        bio_base64_->push(bio_input);
         memset(&current, 0, sizeof current);
         memset(&tmp_tm, 0, sizeof tmp_tm);
         memset(tmp_strftime, 0, sizeof tmp_strftime);
 
         for (i = 0; i < count; ++i) {
-                if (casted_tot_size_ != bseq_read(fileno(input_file),
-                                                  stamp_,
-                                                  casted_tot_size_)) {
+                if (casted_tot_size_ !=
+                    bio_base64_->read(stamp_, casted_tot_size_)) {
                         break;
                 }
                 /*
@@ -125,6 +128,8 @@ TimeStamp &TimeStamp::operator << (const size_t count)
         }
 
         fflush(log_file);
+        /* Removes the 'bio_input' from the chain. */
+        bio_input.pop();
 
         if (count != i) {
                 throw runtime_error("TimeStamp::operator << : "
@@ -141,17 +146,23 @@ TimeStamp &TimeStamp::operator >> (const size_t count)
         auto       casted_tot_size_ = narrow_cast<int, size_t>(tot_size_);
         size_t     i                = 0U;
         FILE      *output_file      = (NULL == output_) ? stdout : output_;
+        BIOWrapper bio_output(output_file, BIO_NOCLOSE);
+
+        bio_base64_->push(bio_output);
 
         for (i = 0; i < count; ++i) {
                 if (-1 == clock_gettime(CLOCK_REALTIME, &(stamp_->timespec))) {
                         break;
                 }
-                if (casted_tot_size_ != bseq_write(fileno(output_file),
-                                                   stamp_,
-                                                   casted_tot_size_)) {
+                if (casted_tot_size_ !=
+                    bio_base64_->write(stamp_, casted_tot_size_)) {
                         break;
                 }
         }
+
+        bio_base64_->flush();
+        /* Removes the 'bio_output' from the chain. */
+        bio_output.pop();
 
         if (count != i) {
                 throw runtime_error("TimeStamp::operator >> : "
@@ -187,9 +198,10 @@ void TimeStamp::io_control_(LogSwitch_ flip)
                                 std::fclose(file);
                         }
                 }
+                delete bio_base64_;
                 break;
         case LogSwitch_::ON:
-                break;
+                bio_base64_ = new BIOWrapper(BIOWrapper::f_base64());
         }
 }
 
