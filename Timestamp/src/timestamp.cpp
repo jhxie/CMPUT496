@@ -132,7 +132,7 @@ TimeStamp &TimeStamp::operator << (const size_t count)
         bio_input.pop();
 
         if (count != i) {
-                throw runtime_error("TimeStamp::operator << : "
+                throw runtime_error("TimeStamp::operator <<() : "
                                     "failed to receive required amount");
         }
         return *this;
@@ -165,7 +165,7 @@ TimeStamp &TimeStamp::operator >> (const size_t count)
         bio_output.pop();
 
         if (count != i) {
-                throw runtime_error("TimeStamp::operator >> : "
+                throw runtime_error("TimeStamp::operator >>() : "
                                     "failed to send required amount");
         }
         return *this;
@@ -205,65 +205,6 @@ void TimeStamp::io_control_(LogSwitch_ flip)
         }
 }
 
-#if 0
-void  TimeStamp::io_control_on_()
-{
-        using std::fopen;
-        using std::runtime_error;
-
-        const char        *output_file_name = NULL;
-        static const char *getenv_err       = "log_control_(): secure_getenv()"
-                                              " failed";
-        static const char *fopen_err        = "log_control_(): fopen() failed";
-
-        /* Base64 BIO needs to be constructed regardless of the mode. */
-        bio_base64_ = new BIOWrapper(BIOWrapper::f_base64());
-
-        /* Set up bio_output_; again, the mode does not matter. */
-        if (NULL == log_env_symbol_) {
-                /* log_ is an alias for stdout. */
-                log_ = stdout;
-                /* Transfer the ownership of log_. */
-                bio_output_ = new BIOWrapper(log_, BIO_NOCLOSE);
-        } else {
-                output_file_name = secure_getenv(log_env_symbol_);
-                if (NULL == output_file_name) {
-                        throw runtime_error(getenv_err);
-                }
-                log_ = fopen(output_file_name, "w");
-                if (NULL == log_) {
-                        throw runtime_error(fopen_err);
-                }
-                /* Transfer the ownership of log_. */
-                bio_output_ = new BIOWrapper(log_, BIO_CLOSE);
-        }
-
-        if (TimeStampMode::RECEIVE == mode_) {
-                bio_input_ = new BIOWrapper(stdin, BIO_NOCLOSE);
-                bio_base64_->push(*bio_input_);
-        } else if (TimeStampMode::SEND == mode_) {
-                bio_base64_->push(*bio_output_);
-        }
-}
-
-void TimeStamp::io_control_off_()
-{
-        /*
-         * The ownership of the log_ is already transferred to
-         * BIOWrapper class, so nothing needs to be done here
-         * since the resource deallocation is the responsibility
-         * of bio_output_.
-         */
-        if (TimeStampMode::RECEIVE == mode_) {
-                bio_output_->flush();
-                delete bio_input_;
-        } else if (TimeStampMode::SEND == mode_) {
-                bio_base64_->flush();
-        }
-        delete bio_base64_;
-        delete bio_output_;
-}
-#endif
 /*
  * Modified from the example from:
  * http://www.guyrutenberg.com/2007/09/22/profiling-code-using-clock_gettime/

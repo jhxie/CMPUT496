@@ -22,6 +22,7 @@ indent_size = 8
 indent_style = space
 indent_size = 4
 
-# Tab indentation (no size specified)
+# Tab indentation
 [Makefile]
 indent_style = tab
+indent_size = 8
