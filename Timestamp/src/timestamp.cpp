@@ -21,6 +21,7 @@
  *
  * @section DESCRIPTION
  *
+ * Implementation file for the timestamp class.
  */
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -57,6 +58,11 @@ TimeStamp::TimeStamp(size_t pad_size, FILE *input, FILE *output, FILE *log)
 
         io_control_(LogSwitch_::ON);
 
+        /*
+         * Here total size is used to avoid dealing with the case where
+         * 'pad_size' is given as 0: malloc() may return either NULL or an
+         * 'unique' pointer value that can be freed later.
+         */
         stamp_ = reinterpret_cast<Stamp_ *>(std::malloc(tot_size_));
 
         if (NULL == stamp_) {

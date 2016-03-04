@@ -45,15 +45,9 @@ explained above) across an *SSH* channel:
 ts -s -c 10 -b 4096 | ssh joe@ohaton.cs.ualberta.ca ts -r -c 10 -b 4096
 ```
 *joe* is the username for the remote host *ohaton.cs.ualberta.ca*, remember you
-have to execute:
-```bash
-mkdir build
-cmake -Bbuild -H.
-make -j5 -C build
-sudo make -C build install
-```
-on both machines; otherwise the remote host will not be able to find the
-executable unless an absolute path is given.
+have to follow the instructions in the upper level [README.md](../README.md)
+to build and **install** the executable on both machines; otherwise the remote
+host will not be able to find the executable unless an absolute path is given.
 
 ## Usage Message
 To show a list of supported command line options and arguments, issue:

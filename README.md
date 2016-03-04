@@ -57,11 +57,13 @@ vimdot PerformanceAnalysis/SingleSwitchTopo.dot
 
 ## Timestamp
 ### Dependencies
-Please make sure you have **build-essential** and **cmake** packages installed.
-if you are on a Debian-based machine (ubuntu for example), to install all the
-build dependencies, issue:
+Please make sure you have **build-essential**, **sshpass**, and **cmake**
+packages installed (sshpass is required for automatically supply password among
+virtual hosts set up by mininet).
+If you are on a Debian-based machine (ubuntu for example), to install all the
+dependencies, issue:
 ```bash
-sudo apt-get install build-essential cmake cmake-extras extra-cmake-modules
+sudo apt-get install build-essential cmake cmake-extras extra-cmake-modules sshpass
 ```
 After all the above build dependencies are installed, make sure your gcc's
 version is at least 5.1 and cmake's version is above 3 if you are using the VM

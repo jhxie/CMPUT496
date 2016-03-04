@@ -2,14 +2,16 @@
 
 """
 This script automates the build process of the timestamp program as well as
-generates a one way RTT plot based on its output.
+generates three plots based on padding message size, loss rate, and RTT.
 To avoid potential incompatibility with different shells (bash ksh tcsh, etc),
 python is used rather than usual shell scripts.
+Happy lazy sysadmins.
 """
 
 from __future__ import print_function
 
 import argparse
+import getpass
 import matplotlib.pyplot as plt
 import multiprocessing
 import os
@@ -22,6 +24,94 @@ from mininet.util import dumpNodeConnections
 from mininet.log import setLogLevel
 
 from SingleSwitchTopo import SingleSwitchTopo
+
+
+# ---------------------------- GLOBAL CONSTANTS -------------------------------
+ENVNAME = 0
+REPORTNAME = 1
+
+TIMESTAMP_ATTRS = {0: "TIMESTAMP_OUTPUT",
+                   1: "tsLog.csv"}
+
+SSH_CMD = 0
+SSHD_PATH = 1
+SSHPASS_CMD = 2
+# Strictly speaking, the password is not a 'constant', but it is only set once
+# throughout the lifetime of this script.
+SSH_PASSWD = 3
+
+SSH_ATTRS = {0: "ssh -oStrictHostKeyChecking=no mininet@",
+             1: "/usr/sbin/sshd",
+             2: "sshpass -p ",
+             3: str()}
+
+# ---------------------------- GLOBAL CONSTANTS -------------------------------
+
+
+def tsTestPadMsgSize(padMsgSize, numOfRuns, msgSent):
+    """
+    """
+    for argument in (padMsgSize, numOfRuns, msgSent):
+        if not isinstance(argument, int) or 0 > argument:
+            raise ValueError("argument must be non-negative integers")
+
+    os.system("cd /tmp/ && rm -f " + TIMESTAMP_ATTRS[REPORTNAME])
+    # Environment variables set in the host will not be seen in the virtual
+    # hosts set up by mininet, left as it is just in case
+    os.system("export " + TIMESTAMP_ATTRS[ENVNAME] + "=" +
+              TIMESTAMP_ATTRS[REPORTNAME])
+
+    print("!! Performing TimeStamp Test Using Padding Message Size !!")
+    topo = SingleSwitchTopo(n=2)
+    net = Mininet(topo, link=TCLink)
+    net.start()
+    print("!! Dumping host connections !!")
+    dumpNodeConnections(net.hosts)
+    print("!! Testing network connectivity !!")
+    net.pingAll()
+
+    h1, h2 = net.getNodeByName("h1", "h2")
+    h1.cmd(SSH_ATTRS[SSHD_PATH])
+    h2.cmd(SSH_ATTRS[SSHD_PATH])
+    print("!! Testing Normalized Arrival Time Between h1 ({0}) and h2 ({1}) !!"
+          .format(h1.IP(), h2.IP()))
+
+
+    h1.cmd("ts -s -b {0} -c {1} | {2} '{3}' {4}{5} ts -r -b {0} -c {1}"
+           .format(padMsgSize, msgSent,
+                   SSH_ATTRS[SSHPASS_CMD], SSH_ATTRS[SSH_PASSWD],
+                   SSH_ATTRS[SSH_CMD], h2.IP()))
+    #for _ in range(numOfRuns):
+    #    for _ in range(msgSent):
+    #        pass
+    net.stop()
+
+def tsTestLoss(lossRate, numOfRuns, msgSent):
+    """
+    """
+    for argument in (lossRate, numOfRuns, msgSent):
+        if not isinstance(argument, int) or 0 > argument:
+            raise ValueError("argument must be non-negative integers")
+
+    os.system("cd /tmp/ && rm -f " + TIMESTAMP_ATTRS[REPORTNAME])
+    os.system("export " + TIMESTAMP_ATTRS[ENVNAME] + "=" +\
+              TIMESTAMP_ATTRS[REPORTNAME])
+
+    print("!! Performing TimeStamp Test Using Loss Rate !!")
+
+
+def tsTestRTT(RTT, numOfRuns, msgSent):
+    """
+    """
+    for argument in (RTT, numOfRuns, msgSent):
+        if not isinstance(argument, int) or 0 > argument:
+            raise ValueError("argument must be non-negative integers")
+
+    os.system("cd /tmp/ && rm -f " + TIMESTAMP_ATTRS[REPORTNAME])
+    os.system("export " + TIMESTAMP_ATTRS[ENVNAME] + "=" +\
+              TIMESTAMP_ATTRS[REPORTNAME])
+
+    print("!! Performing TimeStamp Test Using RTT !!")
 
 
 def autoGen():
@@ -57,6 +147,7 @@ def autoGen():
 
 if __name__ == "__main__":
     tsTestDescription = ""
+    passPrompt = "Password used for SSH among mininet virtual hosts: "
     setLogLevel("info")
     parser = argparse.ArgumentParser(description=tsTestDescription)
     exclusiveFlagGroup = parser.add_mutually_exclusive_group()
@@ -107,3 +198,6 @@ if __name__ == "__main__":
     if (args.print) and (args.runs or args.file):
         #perfPrintResult(resultList)
         pass
+
+    SSH_ATTRS[SSH_PASSWD] = getpass.getpass(passPrompt)
+    tsTestPadMsgSize(0, 0, 10)
