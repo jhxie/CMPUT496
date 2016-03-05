@@ -35,6 +35,18 @@
 
 int main(int argc, char *argv[])
 {
+        using std::fopen;
+        using std::runtime_error;
+        using std::strcmp;
+
+        struct utsname uname_buf   = { };
+        if (-1 == uname(&uname_buf)) {
+                throw runtime_error("main() : uname() call failed");
+        }
+
+        if (0 != strcmp("Linux", uname_buf.sysname)) {
+                throw runtime_error("main() : unsupported platform");
+        }
         /*
          * The reason not to use enumeration instead is c++ has stronger
          * type checking than c does: static_cast between enumerator and int
@@ -51,6 +63,15 @@ int main(int argc, char *argv[])
         argument = argument_parse(&operating_mode, argc, argv);
 
         if (NULL != argument.env_output_file) {
+                /*
+                 * Note the return value of fopen() is not checked:
+                 * TimeStamp class will perform NULL checks in such cases.
+                 * Also, robust programs should NEVER simply trust file names
+                 * (after all, trust is something that cannot be 'freely'
+                 * granted, isn't it); but in this case the file is only used
+                 * for dumping log info, so malicious text hidden in that
+                 * file is no harm.
+                 */
                 user_log = fopen(argument.env_output_file, "w");
         }
 

@@ -31,6 +31,7 @@
 #include "cmnutil.h"
 #include "timestamp.h"
 
+#include <cinttypes> /* strtoumax() */
 #include <climits>   /* SIZE_MAX */
 #include <cstdio>    /* fileno() */
 #include <cstring>   /* memset() */
@@ -71,7 +72,8 @@ TimeStamp::TimeStamp(size_t pad_size, FILE *input, FILE *output, FILE *log)
         /*
          * Note the trailing padding field is intentially left un-initialized
          * to prevent potential compression algorithms used by ssh from
-         * indirectly shortening the actual length of the message.
+         * indirectly shortening the actual length of the message:
+         * that's also the reason malloc() is used instead of calloc().
          */
         std::memset(stamp_, 0, sizeof(Stamp_));
 }
@@ -87,53 +89,47 @@ TimeStamp::~TimeStamp()
  */
 TimeStamp &TimeStamp::operator << (const size_t count)
 {
-        using std::memset;
         using std::runtime_error;
 
+        enum            {DELTA, NORMALIZED, TS_ARRAY_SIZE};
         auto            casted_tot_size_ = narrow_cast<int, size_t>(tot_size_);
-        char            tmp_strftime[1 << 13] = { };
-
         size_t           i          = 0U;
         FILE            *input_file = (NULL == input_) ? stdin : input_;
         FILE            *log_file   = (NULL == log_) ? stdout : log_;
+        /* Used to store the initial timestamp received in this run. */
+        struct timespec  initial    = { };
         struct timespec  current    = { };
-        struct tm        tmp_tm     = { };
         BIOWrapper       bio_input(input_file, BIO_NOCLOSE);
+        struct timespec  ts_array[TS_ARRAY_SIZE] = { };
 
         /* Build the chain of the form bio_base64_--bio_input. */
         bio_base64_->push(bio_input);
-        memset(&current, 0, sizeof current);
-        memset(&tmp_tm, 0, sizeof tmp_tm);
-        memset(tmp_strftime, 0, sizeof tmp_strftime);
 
-        for (i = 0; i < count; ++i) {
+        for (i = 0U; i < count; ++i) {
                 if (casted_tot_size_ !=
                     bio_base64_->read(stamp_, casted_tot_size_)) {
                         break;
                 }
+                if (0U == i) {
+                        fprintf(log_file, "DELTA,NORMALIZED\n");
+                        initial = stamp_->timespec;
+                }
                 /*
                  * clock_gettime() needs to be called after the read from
-                 * stdin due to the possibility of be blocked.
+                 * stdin due to the possibility of being blocked.
                  */
                 if (-1 == clock_gettime(CLOCK_REALTIME, &current)) {
                         break;
                 }
 
-                current = timespec_diff_(&current, &(stamp_->timespec));
+                ts_array[DELTA] = timespec_diff_(&current, &stamp_->timespec);
+                ts_array[NORMALIZED] = timespec_diff_(&current, &initial);
 
-                if (NULL == localtime_r(&current.tv_sec, &tmp_tm)) {
+                if (-1 == log_dump_(ts_array, TS_ARRAY_SIZE)) {
                         break;
                 }
-                if (0 == strftime(tmp_strftime,
-                                  sizeof tmp_strftime,
-                                  "%s",
-                                  &tmp_tm)) {
-                        break;
-                }
-                fprintf(log_file, "%s,%ld\n", tmp_strftime, current.tv_nsec);
         }
 
-        fflush(log_file);
         /* Removes the 'bio_input' from the chain. */
         bio_input.pop();
 
@@ -211,13 +207,50 @@ void TimeStamp::io_control_(LogSwitch_ flip)
         }
 }
 
+int TimeStamp::log_dump_(const timespec timespec_array[], const size_t size)
+{
+        /* Temporary buffer used for localtime_r() call. */
+        struct tm        tmp_tm           = { };
+        char             tmp_sec[1 << 13] = { };
+        char            *endptr           = NULL;
+        intmax_t         sec              = 0;
+        intmax_t         result           = 0;
+        FILE            *log_file         = (NULL == log_) ? stdout : log_;
+
+        for (size_t i = 0; i < size; ++i) {
+                if (NULL == localtime_r(&(timespec_array[i].tv_sec), &tmp_tm)){
+                        return -1;
+                }
+                if (0 == strftime(tmp_sec, sizeof tmp_sec, "%s", &tmp_tm)) {
+                        return -1;
+                }
+
+                endptr = NULL;
+                errno  = 0;
+                sec    = strtoimax(tmp_sec, &endptr, 10);
+                if (INTMAX_MAX == sec && ERANGE == errno) {
+                        return -1;
+                }
+                if (0 == sec && endptr == tmp_sec) {
+                        return -1;
+                }
+                /* Result is in milliseconds. */
+                result = 1000 * sec + timespec_array[i].tv_nsec / 1000000;
+                fprintf(log_file, "%" PRIdMAX "%s",
+                        result,
+                        size == i + 1 ? "\n" : ",");
+        }
+        fflush(log_file);
+        return 0;
+}
+
 /*
  * Modified from the example from:
  * http://www.guyrutenberg.com/2007/09/22/profiling-code-using-clock_gettime/
  */
 timespec TimeStamp::timespec_diff_(const timespec *end, const timespec *start)
 {
-        timespec result;
+        struct timespec result;
 
         if (0 > (end->tv_nsec - start->tv_nsec)) {
                 result.tv_sec = end->tv_sec - start->tv_sec - 1;

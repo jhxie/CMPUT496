@@ -42,6 +42,7 @@ extern "C" {
 #endif
 
 #include <getopt.h>  /* getopt_long() */
+#include <sys/utsname.h> /* uname() */
 #include <unistd.h>
 
 #ifdef __cplusplus

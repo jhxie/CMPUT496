@@ -15,6 +15,7 @@ import getpass
 import matplotlib.pyplot as plt
 import multiprocessing
 import os
+import platform
 import subprocess
 import sys
 
@@ -76,7 +77,8 @@ def tsTestPadMsgSize(padMsgSize, numOfRuns, msgSent):
     print("!! Testing Normalized Arrival Time Between h1 ({0}) and h2 ({1}) !!"
           .format(h1.IP(), h2.IP()))
 
-
+    # From section 7.1.3 'Format String Syntax' of the official python doc:
+    # https://docs.python.org/2/library/string.html
     h1.cmd("ts -s -b {0} -c {1} | {2} '{3}' {4}{5} ts -r -b {0} -c {1}"
            .format(padMsgSize, msgSent,
                    SSH_ATTRS[SSHPASS_CMD], SSH_ATTRS[SSH_PASSWD],
@@ -130,14 +132,18 @@ def autoGen():
 
     if "posix" != os.name:
         sys.exit("This script is only mean to be used on POSIX systems.")
+
+    # Define extra macros for cmake to find compilers that support c++11
+    # if inside the mininet ubuntu 14.04 LTS VM
+    if "mininet-vm" == platform.node():
+        cmakeCommands.append("-DCMAKE_C_COMPILER=/usr/bin/gcc-5")
+        cmakeCommands.append("-DCMAKE_CXX_COMPILER=/usr/bin/g++-5")
+
     # Make a new build directory if it does not exist
     if (False == os.path.exists(buildDirectory)):
         os.mkdir(buildDirectory)
-    # Do nothing if build directory exists:
-    # cmake can speed up the build process by using existing valid compiled
-    # object files
     elif (True == os.path.isdir(buildDirectory)):
-        pass
+        os.system("rm -rf " + buildDirectory + "/*")
     # There is a file named build otherwise
     elif (False == os.path.isdir(buildDirectory)):
         sys.exit("Name conflicts for the \"" + buildDirectory + "\"!")
@@ -150,17 +156,11 @@ if __name__ == "__main__":
     passPrompt = "Password used for SSH among mininet virtual hosts: "
     setLogLevel("info")
     parser = argparse.ArgumentParser(description=tsTestDescription)
-    exclusiveFlagGroup = parser.add_mutually_exclusive_group()
-    exclusiveFlagGroup.add_argument("-r",
-                                    "--runs",
-                                    help="Number of Runs for All 3 Tests",
-                                    required=False,
-                                    type=int)
-    exclusiveFlagGroup.add_argument("-f",
-                                    "--file",
-                                    help="Exported Pickle Data To Be Plotted",
-                                    required=False,
-                                    type=str)
+    parser.add_argument("-f",
+                        "--file",
+                        help="Exported Pickle Data To Be Plotted",
+                        required=False,
+                        type=str)
     parser.add_argument("-b",
                         "--build",
                         action="store_true",
@@ -179,11 +179,7 @@ if __name__ == "__main__":
                         ", Must Be Used With Either -r or -f But Not Both",
                         required=False)
     args = parser.parse_args()
-    if args.runs:
-        #resultList = perfGenResult(testRuns=args.runs)
-        #perfPlotResult(resultList)
-        pass
-    elif args.file:
+    if args.file:
         #resultList = perfManageData(args.file, "r")
         #perfPlotResult(resultList)
         pass
