@@ -120,7 +120,7 @@ def perfTestLatency(rangeMin=1, rangeMax=182, rangeStep=20):
     (i.e. no message loss or variation in file size, holding time constant,
     which is set to be 10 seconds by default for iperf version 2) with 1
     switch and 2 hosts topology.
-    Here the parameters stands for the latency range in milisecond.
+    Here the parameters stand for the latency range in millisecond.
     """
     for argument in (rangeMin, rangeMax, rangeStep):
         if not isinstance(argument, int) or 0 > argument:
