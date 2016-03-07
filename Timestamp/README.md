@@ -54,3 +54,11 @@ To show a list of supported command line options and arguments, issue:
 ```bash
 ts --help
 ```
+
+## tsTest Python Driver Script
+To build the *ts* executable and run all 3 tests:
+```bash
+sudo python tsTest.py -b
+```
+then the 3 generated plots (in *png* format) will reside in the same directory
+as the script.

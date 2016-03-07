@@ -5,9 +5,9 @@ This script automates the build process of the timestamp program as well as
 generates three plots based on padding message size, loss rate, and RTT.
 To avoid potential incompatibility with different shells (bash ksh tcsh, etc),
 python is used rather than usual shell scripts.
-Also, this script is not as well written compared with the timestamp program,
-which is largely due to the fact that the author has very limited experience
-with python.
+Also, this script is not as well written as the timestamp program, which is
+largely due to the fact that the author has very limited experience with
+python.
 """
 
 from __future__ import print_function
@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 import multiprocessing
 import os
 import platform
+import re
 import subprocess
 import sys
 
@@ -103,12 +104,62 @@ def tsTestPadMsgSize(padMsgSize, numOfRuns, msgSent):
 
 def tsTestLoss(lossRate, numOfRuns, msgSent):
     """
+    Send 'msgSent' number of messages with 'lossRate' between the two virtual
+    hosts.
+    For now 'numOfRuns' parameter is IGNORED.
     """
-    for argument in (lossRate, numOfRuns, msgSent):
+    for argument in (numOfRuns, msgSent):
         if not isinstance(argument, int) or 0 > argument:
-            raise ValueError("argument must be non-negative integers")
+            raise ValueError("numOfRuns msgSent must be non-negative integers")
+
+    if not isinstance(lossRate, float) or .0 > lossRate:
+        raise ValueError("lossRate must be non-negative integers")
+
+    delta = list()
+    normalized = list()
+    lossResult = list()
+    # Thanks Nooshin for giving proper instructions to properly use 'tc' and
+    # avoid a potential pitfall!
+    tcCommand = "tc qdisc add dev {0} root netem limit 10000000000 loss {1}%"
+    tsCommand = "ts -s -c {0} | {1} '{2}' {3}{4} ts -r -c {0}"
+    tsOutput = str()
+    interfaceName = str()
 
     print("!! Performing TimeStamp Test Using Loss Rate !!")
+    topo = SingleSwitchTopo(n=2)
+    net = Mininet(topo, link=TCLink)
+    net.start()
+    print("!! Dumping host connections !!")
+    dumpNodeConnections(net.hosts)
+    print("!! Testing network connectivity !!")
+    net.pingAll()
+
+    h1, h2 = net.getNodeByName("h1", "h2")
+    h1.cmd(SSH_ATTRS[SSHD_PATH])
+    h2.cmd(SSH_ATTRS[SSHD_PATH])
+    interfaceName = h1.cmd("ifconfig")
+    # The interface name contains character '-', so adjustment is made to
+    # account for that other than the word character class itself.
+    interfaceName = re.findall(r"[\w'-]+", interfaceName)[0]
+    print("!! Testing Time Delta/Normalized Arrival Time" +
+          "Between h1 ({0}) and h2 ({1}) !!"
+          .format(h1.IP(), h2.IP()))
+
+    print("Loss Rate -------- [{0} %]".format(lossRate))
+    h1.cmd(tcCommand.format(interfaceName, lossRate))
+    tsOutput = h1.cmd(tsCommand.format(msgSent,
+                                       SSH_ATTRS[SSHPASS_CMD],
+                                       SSH_ATTRS[SSH_PASSWD],
+                                       SSH_ATTRS[SSH_CMD],
+                                       h2.IP()))
+    for pair in tsOutput.split()[1:]:
+        delta.append(int(pair.split(",")[0]))
+        normalized.append(int(pair.split(",")[1]))
+
+    net.stop()
+    lossResult.append(delta)
+    lossResult.append(normalized)
+    return lossResult
 
 
 def tsTestRTT(RTT, numOfRuns, msgSent):
@@ -219,7 +270,7 @@ def tsPlotResult(test, tsGenResultList):
 
     # Based on an example from
     # http://matplotlib.org/examples/pylab_examples/subplots_demo.html
-    _, ((ax1, ax2, ax3, ax4),
+    fig, ((ax1, ax2, ax3, ax4),
         (ax5, ax6, ax7, ax8)) = plt.subplots(2, 4, sharex="col", sharey="row")
 
     if "padMsgSize" == test:
@@ -252,7 +303,14 @@ def tsPlotResult(test, tsGenResultList):
             if 3 == idx % 4:
                 subplot.set_title("8192 Bytes")
         elif "loss" == test:
-            pass
+            if 0 == idx % 4:
+                subplot.set_title("0.1 %")
+            if 1 == idx % 4:
+                subplot.set_title("0.2 %")
+            if 2 == idx % 4:
+                subplot.set_title("0.3 %")
+            if 3 == idx % 4:
+                subplot.set_title("0.4 %")
         elif "RTT" == test:
             if 0 == idx % 4:
                 subplot.set_title("10 ms")
@@ -273,6 +331,7 @@ def tsPlotResult(test, tsGenResultList):
                          tsGenResultList[idx % 4][1])
 
     plt.show()
+    fig.savefig("tsTest" + test[0].upper() + test[1:] + ".png")
 
 
 def autoGen():
@@ -312,7 +371,10 @@ def autoGen():
     subprocess.call(makeCommands)
 
 if __name__ == "__main__":
-    tsTestDescription = ""
+    tsTestDescription = "Perform a series of Tests using the Timestamp (ts)" +\
+                        " Program to Measure Time Difference and Normalized" +\
+                        " Arrival Time under 3 Metrics: Padding Message " +\
+                        "Size, Loss Rate, and RTT"
     passPrompt = "Password used for SSH among mininet virtual hosts: "
 
     if "posix" != os.name:
@@ -321,45 +383,17 @@ if __name__ == "__main__":
     setLogLevel("info")
 
     parser = argparse.ArgumentParser(description=tsTestDescription)
-    parser.add_argument("-f",
-                        "--file",
-                        help="Exported Pickle Data To Be Plotted",
-                        required=False,
-                        type=str)
     parser.add_argument("-b",
                         "--build",
                         action="store_true",
                         help="Build the Timestamp Executable",
                         required=False)
-    parser.add_argument("-o",
-                        "--output",
-                        help="File Name of Pickle Data To Be Exported" +
-                        ", Must Be Used With Either -r or -f But Not Both",
-                        required=False,
-                        type=str)
-    parser.add_argument("-p",
-                        "--print",
-                        action="store_true",
-                        help="Print the Collected Data From All 3 Tests" +
-                        ", Must Be Used With Either -r or -f But Not Both",
-                        required=False)
     args = parser.parse_args()
-    if args.file:
-        #resultList = perfManageData(args.file, "r")
-        #perfPlotResult(resultList)
-        pass
 
     if args.build:
         autoGen()
 
-    if (args.output) and (args.runs or args.file):
-        #perfManageData(args.output, "w", resultList)
-        pass
-
-    if (args.print) and (args.runs or args.file):
-        #perfPrintResult(resultList)
-        pass
-
     SSH_ATTRS[SSH_PASSWD] = getpass.getpass(passPrompt)
     tsPlotResult("padMsgSize", tsGenResult("padMsgSize"))
     tsPlotResult("RTT", tsGenResult("RTT"))
+    tsPlotResult("loss", tsGenResult("loss"))
