@@ -84,10 +84,13 @@ def tsTestPadMsgSize(padMsgSize, numOfRuns, msgSent):
 
     # From section 7.1.3 'Format String Syntax' of the official python doc:
     # https://docs.python.org/2/library/string.html
+    print("Padding Message Size -------- [{0} byte]".format(str(padMsgSize)))
     tsOutput = h1.cmd(tsCommand
                       .format(padMsgSize, msgSent,
                               SSH_ATTRS[SSHPASS_CMD], SSH_ATTRS[SSH_PASSWD],
                               SSH_ATTRS[SSH_CMD], h2.IP()))
+    # The extra splicing is used to remove the first line: which is
+    # 'DELTA,NORMALIZED'.
     for pair in tsOutput.split()[1:]:
         delta.append(int(pair.split(",")[0]))
         normalized.append(int(pair.split(",")[1]))
@@ -105,25 +108,55 @@ def tsTestLoss(lossRate, numOfRuns, msgSent):
         if not isinstance(argument, int) or 0 > argument:
             raise ValueError("argument must be non-negative integers")
 
-    os.system("cd /tmp/ && rm -f " + TIMESTAMP_ATTRS[REPORTNAME])
-    os.system("export " + TIMESTAMP_ATTRS[ENVNAME] + "=" +
-              TIMESTAMP_ATTRS[REPORTNAME])
-
     print("!! Performing TimeStamp Test Using Loss Rate !!")
 
 
 def tsTestRTT(RTT, numOfRuns, msgSent):
     """
+    Send 'msgSent' number of messages with 'RTT' set by mininet.
+    For now 'numOfRuns' parameter is IGNORED.
     """
     for argument in (RTT, numOfRuns, msgSent):
         if not isinstance(argument, int) or 0 > argument:
             raise ValueError("argument must be non-negative integers")
 
-    os.system("cd /tmp/ && rm -f " + TIMESTAMP_ATTRS[REPORTNAME])
-    os.system("export " + TIMESTAMP_ATTRS[ENVNAME] + "=" +
-              TIMESTAMP_ATTRS[REPORTNAME])
+    delta = list()
+    normalized = list()
+    RTTResult = list()
+    tsCommand = "ts -s -c {0} | {1} '{2}' {3}{4} ts -r -c {0}"
 
     print("!! Performing TimeStamp Test Using RTT !!")
+    # Note the RTT is indirectly set by the 'delay' option
+    SingleSwitchTopo.setBuildOption("delay", RTT // 2)
+    topo = SingleSwitchTopo(n=2)
+    net = Mininet(topo, link=TCLink)
+    net.start()
+    print("!! Dumping host connections !!")
+    dumpNodeConnections(net.hosts)
+    print("!! Testing network connectivity !!")
+    net.pingAll()
+
+    h1, h2 = net.getNodeByName("h1", "h2")
+    h1.cmd(SSH_ATTRS[SSHD_PATH])
+    h2.cmd(SSH_ATTRS[SSHD_PATH])
+    print("!! Testing Time Delta/Normalized Arrival Time" +
+          "Between h1 ({0}) and h2 ({1}) !!"
+          .format(h1.IP(), h2.IP()))
+
+    print("RTT -------- [{0} ms]".format(str(RTT)))
+    tsOutput = h1.cmd(tsCommand.format(msgSent,
+                                       SSH_ATTRS[SSHPASS_CMD],
+                                       SSH_ATTRS[SSH_PASSWD],
+                                       SSH_ATTRS[SSH_CMD],
+                                       h2.IP()))
+    for pair in tsOutput.split()[1:]:
+        delta.append(int(pair.split(",")[0]))
+        normalized.append(int(pair.split(",")[1]))
+
+    net.stop()
+    RTTResult.append(delta)
+    RTTResult.append(normalized)
+    return RTTResult
 
 
 def tsGenResult(test):
@@ -153,6 +186,12 @@ def tsGenResult(test):
     if "padMsgSize" == test:
         for padMsgSize in (2, 32, 512, 8192):
             testResults.append(tsTestPadMsgSize(padMsgSize, 1, 1024))
+    elif "loss" == test:
+        for lossRate in (0.1, 0.2, 0.3, 0.4):
+            testResults.append(tsTestLoss(lossRate, 1, 1024))
+    elif "RTT" == test:
+        for RTT in (10, 30, 50, 70):
+            testResults.append(tsTestRTT(RTT, 1, 1024))
 
     return testResults
 
@@ -215,7 +254,14 @@ def tsPlotResult(test, tsGenResultList):
         elif "loss" == test:
             pass
         elif "RTT" == test:
-            pass
+            if 0 == idx % 4:
+                subplot.set_title("10 ms")
+            if 1 == idx % 4:
+                subplot.set_title("30 ms")
+            if 2 == idx % 4:
+                subplot.set_title("50 ms")
+            if 3 == idx % 4:
+                subplot.set_title("70 ms")
 
         # Plotting Deltas
         if 4 > idx:
@@ -316,3 +362,4 @@ if __name__ == "__main__":
 
     SSH_ATTRS[SSH_PASSWD] = getpass.getpass(passPrompt)
     tsPlotResult("padMsgSize", tsGenResult("padMsgSize"))
+    tsPlotResult("RTT", tsGenResult("RTT"))
