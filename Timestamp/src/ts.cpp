@@ -124,7 +124,7 @@ Argument argument_parse(int *operating_mode, int argc, char *argv[])
          * For better readability it is kept this way with some portability
          * sacrificed.
          */
-        static const struct option  long_options[] = {
+        static const struct option  LONG_OPTIONS[] = {
                 {"block",    required_argument, NULL, 'b'},
                 {"count",    required_argument, NULL, 'c'},
                 {"help",     no_argument,       NULL, 'h'},
@@ -141,7 +141,7 @@ Argument argument_parse(int *operating_mode, int argc, char *argv[])
         while (-1 != (opt = getopt_long(argc,
                                         argv,
                                         TSSEND_FLAGS,
-                                        long_options,
+                                        LONG_OPTIONS,
                                         NULL))) {
                 switch (opt) {
                 /*

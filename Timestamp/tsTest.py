@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 import multiprocessing
 import os
 import platform
+import random
 import re
 import subprocess
 import sys
@@ -238,7 +239,7 @@ def tsGenResult(test):
         for padMsgSize in (2, 32, 512, 8192):
             testResults.append(tsTestPadMsgSize(padMsgSize, 1, 1024))
     elif "loss" == test:
-        for lossRate in (0.1, 0.2, 0.3, 0.4):
+        for lossRate in (0.1, 0.2, 0.3, 5):
             testResults.append(tsTestLoss(lossRate, 1, 1024))
     elif "RTT" == test:
         for RTT in (10, 30, 50, 70):
@@ -263,15 +264,18 @@ def tsPlotResult(test, tsGenResultList):
     +--------------------------+---------------------------+
     """
     if not isinstance(test, str) or test not in ("padMsgSize", "loss", "RTT"):
-        raise ValueError("argument must be string," +
+        raise ValueError("test must be string," +
                          "and one of padMsgSize, loss, RTT")
-    if not tsGenResultList:
-        raise ValueError("tsGenResultList must not be empty or none")
+    if not tsGenResultList or not isinstance(tsGenResultList, list):
+        raise ValueError("tsGenResultList must be of list type " +
+                         "and cannot be empty")
 
+    outputPlotName = "tsTest" + test[0].upper() + test[1:] + ".png"
+    plotDirectory = "./plot"
     # Based on an example from
     # http://matplotlib.org/examples/pylab_examples/subplots_demo.html
-    fig, ((ax1, ax2, ax3, ax4),
-        (ax5, ax6, ax7, ax8)) = plt.subplots(2, 4, sharex="col", sharey="row")
+    fig, ((ax1, ax2, ax3, ax4), (ax5, ax6, ax7, ax8)) =\
+        plt.subplots(2, 4, sharex="col", sharey="row")
 
     if "padMsgSize" == test:
         plt.suptitle("Timestamp Tests Using Padding Message Size")
@@ -310,7 +314,7 @@ def tsPlotResult(test, tsGenResultList):
             if 2 == idx % 4:
                 subplot.set_title("0.3 %")
             if 3 == idx % 4:
-                subplot.set_title("0.4 %")
+                subplot.set_title("5 %")
         elif "RTT" == test:
             if 0 == idx % 4:
                 subplot.set_title("10 ms")
@@ -331,7 +335,83 @@ def tsPlotResult(test, tsGenResultList):
                          tsGenResultList[idx % 4][1])
 
     plt.show()
-    fig.savefig("tsTest" + test[0].upper() + test[1:] + ".png")
+    fig.savefig(outputPlotName)
+
+    if (False == os.path.exists(plotDirectory)):
+        os.mkdir(plotDirectory)
+
+    os.system("mv " + outputPlotName + plotDirectory + "/")
+
+
+def tsPrintResult(test, resultList):
+    """
+    Take result list for a test case specified and print 8 random samples from
+    each single test.
+    Since this script hardcoded 'Arrival Time Delta' and 'Normalized Arrival
+    Time' for each test, in total there are 8 * 2 * 4 = 64 points.
+    """
+    if not isinstance(test, str) or test not in ("padMsgSize", "loss", "RTT"):
+        raise ValueError("test must be string," +
+                         "and one of padMsgSize, loss, RTT")
+    if not resultList or not isinstance(resultList, list):
+        raise ValueError("resultList must be of list type and cannot be empty")
+
+    resultFileName = "ts" + test[0].upper() + test[1:] + "TestResult.txt"
+
+    with open(resultFileName, "w") as resultFile:
+        resultFile.write(test + "\n")
+
+        # Pick one record at a time
+        for dataPairIdx in range(len(resultList) * 2):
+            sampleIdxList = list()
+            currentRecord = list()
+
+            if 0 == dataPairIdx:
+                resultFile.write("Deltas|")
+            elif len(resultList) == dataPairIdx:
+                resultFile.write("Normalized|")
+
+            # Arrival Time Deltas
+            if len(resultList) > dataPairIdx:
+                currentRecord = resultList[dataPairIdx][0]
+            # Normalized Arrival Time -- wrap around back to the beginning
+            else:
+                currentRecord = resultList[dataPairIdx % len(resultList)][1]
+
+            recordLen = len(currentRecord)
+            sampleIdxList = tsPickSample(recordLen)
+
+            for idx in sampleIdxList:
+                outputPair = "[" + str(idx) + "," +\
+                             str(currentRecord[idx]) + "]|"
+                resultFile.write(outputPair)
+
+            if (len(resultList) == dataPairIdx + 1):
+                resultFile.write("\n")
+
+
+def tsPickSample(recordListLength):
+    """
+    Pick 8 random indices within the close interval [0, recordListLength - 1]
+    and return the picked indices in increasing sorted order.
+    """
+    if not isinstance(recordListLength, int) or 0 >= recordListLength:
+        raise ValueError("recordListLength must be of int type and has size "
+                         "greater than zero")
+
+    sampleIdxList = list()
+    # randint() uses close interval, so subtract 1 to account for that
+    upperBound = recordListLength - 1
+
+    while 8 != len(sampleIdxList):
+        chosenIdx = random.randint(0, upperBound)
+        if chosenIdx in sampleIdxList:
+            continue
+        else:
+            sampleIdxList.append(chosenIdx)
+
+    sampleIdxList.sort()
+    return sampleIdxList
 
 
 def autoGen():
@@ -370,6 +450,7 @@ def autoGen():
     subprocess.call(cmakeCommands)
     subprocess.call(makeCommands)
 
+
 if __name__ == "__main__":
     tsTestDescription = "Perform a series of Tests using the Timestamp (ts)" +\
                         " Program to Measure Time Difference and Normalized" +\
@@ -394,6 +475,7 @@ if __name__ == "__main__":
         autoGen()
 
     SSH_ATTRS[SSH_PASSWD] = getpass.getpass(passPrompt)
-    tsPlotResult("padMsgSize", tsGenResult("padMsgSize"))
-    tsPlotResult("RTT", tsGenResult("RTT"))
-    tsPlotResult("loss", tsGenResult("loss"))
+    #tsPlotResult("padMsgSize", tsGenResult("padMsgSize"))
+    #tsPlotResult("RTT", tsGenResult("RTT"))
+    #tsPlotResult("loss", tsGenResult("loss"))
+    tsPrintResult("padMsgSize", tsGenResult("padMsgSize"))
