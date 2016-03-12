@@ -8,6 +8,7 @@ after proper password is entered, the 3 generated reports named
 * *tsLossTestResult.txt*
 * *tsPadMsgSizeTestResult.txt*
 * *tsRTTTestResult.txt*
+
 will reside in this directory.
 ## Overview
 The mininet topology setup is the same as the *Performance Analysis* one, which
@@ -27,8 +28,12 @@ A fundamental flaw in the [tsTest.py](../tsTest.py) test driver script is the
 lack of averaging functions: the sample results listed here may turn out to be
 outliers, so in the future the averaging functionality may be added to ensure
 the data obtained is actually "trustworthy".
+
+**NOTE** the unit for measuring time for all the tests below is millisecond.
 ## Padding Message Size
+Refer to the plot [tsTestPadMsgSize.png](plot/tsTestPadMsgSize.png).
 2 Bytes
+
 |Sequence Number|Arrival Time Delta|Normalized Arrival Time|
 |:-------------:| ----------------:| ---------------------:|
 | 83            | 128              | 128                   |
@@ -39,7 +44,9 @@ the data obtained is actually "trustworthy".
 | 905           | 150              | 150                   |
 | 940           | 150              | 150                   |
 | 943           | 150              | 150                   |
+
 32 Bytes
+
 |Sequence Number|Arrival Time Delta|Normalized Arrival Time|
 |:-------------:| ----------------:| ---------------------:|
 | 83            | 136              | 136                   |
@@ -50,6 +57,7 @@ the data obtained is actually "trustworthy".
 | 905           | 162              | 162                   |
 | 940           | 162              | 162                   |
 | 943           | 162              | 162                   |
+
 512 Bytes
 |Sequence Number|Arrival Time Delta|Normalized Arrival Time|
 |:-------------:| ----------------:| ---------------------:|
@@ -61,7 +69,9 @@ the data obtained is actually "trustworthy".
 | 905           | 146              | 232                   |
 | 940           | 149              | 235                   |
 | 943           | 150              | 236                   |
+
 8192 Bytes
+
 |Sequence Number|Arrival Time Delta|Normalized Arrival Time|
 |:-------------:| ----------------:| ---------------------:|
 | 83            | 131              | 224                   |
@@ -74,7 +84,9 @@ the data obtained is actually "trustworthy".
 | 943           | 1942             | 2983                  |
 
 ## Loss Rate
+Refer to the plot [tsTestLoss.png](plot/tsTestLoss.png).
 0.1 %
+
 |Sequence Number|Arrival Time Delta|Normalized Arrival Time|
 |:-------------:| ----------------:| ---------------------:|
 | 33            | 939              | 939                   |
@@ -85,7 +97,9 @@ the data obtained is actually "trustworthy".
 | 681           | 959              | 959                   |
 | 710           | 959              | 959                   |
 | 957           | 973              | 973                   |
+
 0.2 %
+
 |Sequence Number|Arrival Time Delta|Normalized Arrival Time|
 |:-------------:| ----------------:| ---------------------:|
 | 33            | 923              | 923                   |
@@ -96,7 +110,9 @@ the data obtained is actually "trustworthy".
 | 681           | 949              | 949                   |
 | 710           | 950              | 950                   |
 | 957           | 955              | 955                   |
+
 0.3 %
+
 |Sequence Number|Arrival Time Delta|Normalized Arrival Time|
 |:-------------:| ----------------:| ---------------------:|
 | 33            | 955              | 955                   |
@@ -107,7 +123,9 @@ the data obtained is actually "trustworthy".
 | 681           | 958              | 958                   |
 | 710           | 958              | 958                   |
 | 957           | 966              | 966                   |
+
 5 %
+
 |Sequence Number|Arrival Time Delta|Normalized Arrival Time|
 |:-------------:| ----------------:| ---------------------:|
 | 33            | 934              | 934                   |
@@ -120,7 +138,9 @@ the data obtained is actually "trustworthy".
 | 957           | 965              | 965                   |
 
 ## RTT
+Refer to the plot [tsTestRTT.png](plot/tsTestRTT.png).
 10 Miliseconds
+
 |Sequence Number|Arrival Time Delta|Normalized Arrival Time|
 |:-------------:| ----------------:| ---------------------:|
 | 281           | 246              | 246                   |
@@ -131,7 +151,9 @@ the data obtained is actually "trustworthy".
 | 568           | 250              | 250                   |
 | 637           | 250              | 250                   |
 | 737           | 251              | 251                   |
+
 30 Miliseconds
+
 |Sequence Number|Arrival Time Delta|Normalized Arrival Time|
 |:-------------:| ----------------:| ---------------------:|
 | 281           | 477              | 477                   |
@@ -142,7 +164,9 @@ the data obtained is actually "trustworthy".
 | 568           | 481              | 481                   |
 | 637           | 492              | 492                   |
 | 737           | 495              | 495                   |
+
 50 Miliseconds
+
 |Sequence Number|Arrival Time Delta|Normalized Arrival Time|
 |:-------------:| ----------------:| ---------------------:|
 | 281           | 717              | 717                   |
@@ -153,7 +177,9 @@ the data obtained is actually "trustworthy".
 | 568           | 741              | 741                   |
 | 637           | 741              | 741                   |
 | 737           | 742              | 742                   |
+
 70 Miliseconds
+
 |Sequence Number|Arrival Time Delta|Normalized Arrival Time|
 |:-------------:| ----------------:| ---------------------:|
 | 281           | 935              | 935                   |
