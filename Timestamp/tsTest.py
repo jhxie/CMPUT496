@@ -271,7 +271,7 @@ def tsPlotResult(test, tsGenResultList):
                          "and cannot be empty")
 
     outputPlotName = "tsTest" + test[0].upper() + test[1:] + ".png"
-    plotDirectory = "./plot"
+    plotDirectory = "./report/plot"
     # Based on an example from
     # http://matplotlib.org/examples/pylab_examples/subplots_demo.html
     fig, ((ax1, ax2, ax3, ax4), (ax5, ax6, ax7, ax8)) =\
@@ -357,13 +357,13 @@ def tsPrintResult(test, resultList):
         raise ValueError("resultList must be of list type and cannot be empty")
 
     resultFileName = "ts" + test[0].upper() + test[1:] + "TestResult.txt"
+    resultFileDirectory = "report/"
+    # Since the 2 sublists within each record are of same length
+    # (1024 for now), it is safe to choose either
+    sampleIdxList = tsPickSample(len(resultList[0][0]))
 
-    with open(resultFileName, "w") as resultFile:
+    with open(resultFileDirectory + resultFileName, "w") as resultFile:
         resultFile.write(test + "\n")
-
-        # Since the 2 sublists within each record are of same length
-        # (1024 for now), it is safe to choose either
-        sampleIdxList = tsPickSample(len(resultList[0][0]))
 
         for idx, dataPair in enumerate(resultList):
             if "padMsgSize" == test:
@@ -398,7 +398,7 @@ def tsPrintResult(test, resultList):
             for sampleIndex in sampleIdxList:
                 resultFile.write("|" + str(sampleIndex) + "|" +
                                  str(dataPair[0][sampleIndex]) + "|" +
-                                 str(dataPair[1][sampleIndex])+ "|\n")
+                                 str(dataPair[1][sampleIndex]) + "|\n")
 
 
 def tsPickSample(recordListLength):

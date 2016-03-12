@@ -60,5 +60,7 @@ To build the *ts* executable and run all 3 tests:
 ```bash
 sudo python tsTest.py -b
 ```
-then the 3 generated plots (in *png* format) will reside in the same directory
-as the script.
+then the 3 generated plots (in *png* format) along with their reports
+(text file) will reside in the *report* folder.
+Refer to [README.md](./report/README.md) in *report* folder for the detailed
+summary.
