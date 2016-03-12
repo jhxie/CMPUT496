@@ -1,4 +1,31 @@
-padMsgSize
+# Estimating Network Offered-Load Using Timestamp
+All the 3 tests are done by running the [tsTest.py](../tsTest.py) script with
+the following:
+```bash
+sudo python tsTest.py -b
+```
+after proper password is entered, the 3 generated reports named
+*tsLossTestResult.txt* *tsPadMsgSizeTestResult.txt* *tsRTTTestResult.txt*
+will reside in this directory.
+## Overview
+The mininet topology setup is the same as the *Performance Analysis* one, which
+is a **linear** topology with 1 switch and 2 hosts:
+![topo](./doc/SingleSwitchTopo.png)
+The whole experiment is done under the VM provided by mininet
+(Ubuntu 14.04 LTS), and the following command:
+```bash
+uname -r
+```
+shows the kernel release version to be
+[3.13.0-24-generic](http://packages.ubuntu.com/trusty/kernel/linux-image-3.13.0-24-generic)
+with the corresponding upstream debian and ubuntu patchset applied.
+Note all the tables listed in the following are random samples coming from the
+full 1024 messages sent by the *ts* program.
+A fundamental flaw in the [tsTest.py](../tsTest.py) test driver script is the
+lack of averaging functions: the sample results listed here may turn out to be
+outliers, so in the future the averaging functionality may be added to ensure
+the data obtained is actually "trustworthy".
+## Padding Message Size
 2 Bytes
 |Sequence Number|Arrival Time Delta|Normalized Arrival Time|
 |:-------------:| ----------------:| ---------------------:|
@@ -44,7 +71,7 @@ padMsgSize
 |940            |1937              |2978                   |
 |943            |1942              |2983                   |
 
-loss
+## Loss Rate
 0.1 %
 |Sequence Number|Arrival Time Delta|Normalized Arrival Time|
 |:-------------:| ----------------:| ---------------------:|
@@ -90,7 +117,7 @@ loss
 |710            |963               |963                    |
 |957            |965               |965                    |
 
-RTT
+## RTT
 10 Miliseconds
 |Sequence Number|Arrival Time Delta|Normalized Arrival Time|
 |:-------------:| ----------------:| ---------------------:|
@@ -135,3 +162,6 @@ RTT
 |568            |938               |938                    |
 |637            |939               |939                    |
 |737            |940               |940                    |
+
+## Credit
+* Thanks Nooshin for the instructions on using *tc* and *netem*.
