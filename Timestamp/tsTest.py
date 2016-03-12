@@ -239,7 +239,7 @@ def tsGenResult(test):
         for padMsgSize in (2, 32, 512, 8192):
             testResults.append(tsTestPadMsgSize(padMsgSize, 1, 1024))
     elif "loss" == test:
-        for lossRate in (0.1, 0.2, 0.3, 5):
+        for lossRate in (0.1, 0.2, 0.3, 5.0):
             testResults.append(tsTestLoss(lossRate, 1, 1024))
     elif "RTT" == test:
         for RTT in (10, 30, 50, 70):
@@ -340,7 +340,7 @@ def tsPlotResult(test, tsGenResultList):
     if (False == os.path.exists(plotDirectory)):
         os.mkdir(plotDirectory)
 
-    os.system("mv " + outputPlotName + plotDirectory + "/")
+    os.system("mv " + outputPlotName + " " + plotDirectory + "/")
 
 
 def tsPrintResult(test, resultList):
@@ -361,33 +361,44 @@ def tsPrintResult(test, resultList):
     with open(resultFileName, "w") as resultFile:
         resultFile.write(test + "\n")
 
-        # Pick one record at a time
-        for dataPairIdx in range(len(resultList) * 2):
-            sampleIdxList = list()
-            currentRecord = list()
+        # Since the 2 sublists within each record are of same length
+        # (1024 for now), it is safe to choose either
+        sampleIdxList = tsPickSample(len(resultList[0][0]))
 
-            if 0 == dataPairIdx:
-                resultFile.write("Deltas|")
-            elif len(resultList) == dataPairIdx:
-                resultFile.write("Normalized|")
-
-            # Arrival Time Deltas
-            if len(resultList) > dataPairIdx:
-                currentRecord = resultList[dataPairIdx][0]
-            # Normalized Arrival Time -- wrap around back to the beginning
-            else:
-                currentRecord = resultList[dataPairIdx % len(resultList)][1]
-
-            recordLen = len(currentRecord)
-            sampleIdxList = tsPickSample(recordLen)
-
-            for idx in sampleIdxList:
-                outputPair = "[" + str(idx) + "," +\
-                             str(currentRecord[idx]) + "]|"
-                resultFile.write(outputPair)
-
-            if (len(resultList) == dataPairIdx + 1):
-                resultFile.write("\n")
+        for idx, dataPair in enumerate(resultList):
+            if "padMsgSize" == test:
+                if 0 == idx:
+                    resultFile.write("2 Bytes\n")
+                elif 1 == idx:
+                    resultFile.write("32 Bytes\n")
+                elif 2 == idx:
+                    resultFile.write("512 Bytes\n")
+                elif 3 == idx:
+                    resultFile.write("8192 Bytes\n")
+            if "loss" == test:
+                if 0 == idx:
+                    resultFile.write("0.1 %\n")
+                elif 1 == idx:
+                    resultFile.write("0.2 %\n")
+                elif 2 == idx:
+                    resultFile.write("0.3 %\n")
+                elif 3 == idx:
+                    resultFile.write("5 %\n")
+            if "RTT" == test:
+                if 0 == idx:
+                    resultFile.write("10 Miliseconds\n")
+                elif 1 == idx:
+                    resultFile.write("30 Miliseconds\n")
+                elif 2 == idx:
+                    resultFile.write("50 Miliseconds\n")
+                elif 3 == idx:
+                    resultFile.write("70 Miliseconds\n")
+            resultFile.write("|Sequence Number|Arrival Time Delta|"
+                             "Normalized Arrival Time|\n")
+            for sampleIndex in sampleIdxList:
+                resultFile.write("|" + str(sampleIndex) + "|" +
+                                 str(dataPair[0][sampleIndex]) + "|" +
+                                 str(dataPair[1][sampleIndex])+ "|\n")
 
 
 def tsPickSample(recordListLength):
@@ -475,7 +486,14 @@ if __name__ == "__main__":
         autoGen()
 
     SSH_ATTRS[SSH_PASSWD] = getpass.getpass(passPrompt)
-    #tsPlotResult("padMsgSize", tsGenResult("padMsgSize"))
-    #tsPlotResult("RTT", tsGenResult("RTT"))
-    #tsPlotResult("loss", tsGenResult("loss"))
-    tsPrintResult("padMsgSize", tsGenResult("padMsgSize"))
+    padMsgSizeResult = tsGenResult("padMsgSize")
+    RTTResult = tsGenResult("RTT")
+    lossResult = tsGenResult("loss")
+
+    tsPrintResult("padMsgSize", padMsgSizeResult)
+    tsPrintResult("RTT", RTTResult)
+    tsPrintResult("loss", lossResult)
+
+    tsPlotResult("padMsgSize", padMsgSizeResult)
+    tsPlotResult("RTT", RTTResult)
+    tsPlotResult("loss", lossResult)
