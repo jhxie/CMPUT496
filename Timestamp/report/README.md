@@ -14,6 +14,7 @@ will reside in this directory.
 The mininet topology setup is the same as the *Performance Analysis* one, which
 is a **linear** topology with 1 switch and 2 hosts:
 ![topo](../../PerformanceAnalysis/doc/SingleSwitchTopo.png)
+
 The whole experiment is done under the VM provided by mininet
 (Ubuntu 14.04 LTS), and the following command:
 ```bash
@@ -43,6 +44,7 @@ the data obtained is actually "trustworthy".
 instead.
 * The samples are used to give some intuition to the result obtained since it
 is impractical to list all of the results here.
+
 ## Padding Message Size
 Refer to the plot [tsTestPadMsgSize.png](plot/tsTestPadMsgSize.png).
 
@@ -178,13 +180,14 @@ Loss rate is set by the traffic control program (credit section [2]) to be
 0.1%, 0.2%, 0.3%, and 5% (credit section [1]) respectively.
 
 All eight plots are nearly identical regardless of what the loss rate is.
-This anomaly could possibly be caused by bugs in the *ts* program or the
+This anomaly is very likely caused by bugs in the *ts* program or the
 *tsTest* driver script (or both), so further investigation is required later
 on.
 
 For both arrival time delta and normalized arrival time, the time nearly holds
-constant at around 960 (taken from the samples listed above) with very litte
-fluctuations and does not seem to change relative to number of timestamp sent.
+constant within the range between 920 ms - 960 ms (taken from the samples
+listed above) with very litte fluctuations and does not seem to change relative
+to number of timestamp sent.
 
 ## RTT
 Refer to the plot [tsTestRTT.png](plot/tsTestRTT.png).
@@ -259,5 +262,5 @@ Another similar anomaly occurred for the normalized arrival time, which in the
 author's opinion should increase monotonically but for some reason is almost
 identical to the arrival time deltas. Again, further investigation required.
 ## Credit
-1.Thanks Professor Lu for giving suggestions for improvement.
-2.Thanks Nooshin for the instructions on using *tc* and *netem*.
+1. Thanks Professor Lu for giving suggestions for improvement.
+2. Thanks Nooshin for the instructions on using *tc* and *netem*.
