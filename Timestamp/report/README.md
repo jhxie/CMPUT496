@@ -13,6 +13,7 @@ will reside in this directory.
 ## Overview
 The mininet topology setup is the same as the *Performance Analysis* one, which
 is a **linear** topology with 1 switch and 2 hosts:
+
 ![topo](../../PerformanceAnalysis/doc/SingleSwitchTopo.png)
 
 The whole experiment is done under the VM provided by mininet
