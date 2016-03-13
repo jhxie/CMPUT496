@@ -92,7 +92,7 @@ TimeStamp &TimeStamp::operator << (const size_t count)
         using std::runtime_error;
 
         enum            {DELTA, NORMALIZED, TS_ARRAY_SIZE};
-        auto            casted_tot_size_ = narrow_cast<int, size_t>(tot_size_);
+        auto            casted_tot_size = narrow_cast<int, size_t>(tot_size_);
         size_t           i          = 0U;
         FILE            *input_file = (NULL == input_) ? stdin : input_;
         FILE            *log_file   = (NULL == log_) ? stdout : log_;
@@ -106,8 +106,8 @@ TimeStamp &TimeStamp::operator << (const size_t count)
         bio_base64_->push(bio_input);
 
         for (i = 0U; i < count; ++i) {
-                if (casted_tot_size_ !=
-                    bio_base64_->read(stamp_, casted_tot_size_)) {
+                if (casted_tot_size !=
+                    bio_base64_->read(stamp_, casted_tot_size)) {
                         break;
                 }
                 if (0U == i) {
@@ -145,7 +145,7 @@ TimeStamp &TimeStamp::operator >> (const size_t count)
 {
         using std::runtime_error;
 
-        auto       casted_tot_size_ = narrow_cast<int, size_t>(tot_size_);
+        auto       casted_tot_size  = narrow_cast<int, size_t>(tot_size_);
         size_t     i                = 0U;
         FILE      *output_file      = (NULL == output_) ? stdout : output_;
         BIOWrapper bio_output(output_file, BIO_NOCLOSE);
@@ -156,8 +156,8 @@ TimeStamp &TimeStamp::operator >> (const size_t count)
                 if (-1 == clock_gettime(CLOCK_REALTIME, &(stamp_->timespec))) {
                         break;
                 }
-                if (casted_tot_size_ !=
-                    bio_base64_->write(stamp_, casted_tot_size_)) {
+                if (casted_tot_size !=
+                    bio_base64_->write(stamp_, casted_tot_size)) {
                         break;
                 }
         }
