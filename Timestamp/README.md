@@ -56,9 +56,9 @@ ts --help
 ```
 
 ## tsTest Python Driver Script
-To build the *ts* executable and run all 3 tests:
+To build the *ts* executable and run all 3 tests using mininet:
 ```bash
-sudo python tsTest.py -b
+sudo python tsMiniNetTest.py -b
 ```
 then the 3 generated plots (in *png* format) along with their reports
 (text file) will reside in the *report* folder.

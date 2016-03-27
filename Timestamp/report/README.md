@@ -1,8 +1,8 @@
 # Estimating Network Offered-Load Using Timestamp
-All the 3 tests are done by running the [tsTest.py](../tsTest.py) script with
-the following:
+All the 3 tests are done by running the [tsMiniNetTest.py](../tsMiniNetTest.py)
+script with the following:
 ```bash
-sudo python tsTest.py -b
+sudo python tsMiniNetTest.py -b
 ```
 after proper password is entered, the 3 generated reports named
 * *tsLossTestResult.txt*
@@ -34,10 +34,10 @@ which is 2.2.1 in the VM.
 Note all the tables listed in the following are random samples coming from the
 full 1024 messages sent by the *ts* program.
 
-A fundamental flaw in the [tsTest.py](../tsTest.py) test driver script is the
-lack of averaging functions: the sample results listed here may turn out to be
-outliers, so in the future the averaging functionality may be added to ensure
-the data obtained is actually "trustworthy".
+A fundamental flaw in the [tsMiniNetTest.py](../tsMiniNetTest.py) test driver
+script is the lack of averaging functions: the sample results listed here may
+turn out to be outliers, so in the future the averaging functionality may be
+added to ensure the data obtained is actually "trustworthy".
 
 **NOTE**
 * The unit for measuring time for all the tests below is millisecond.

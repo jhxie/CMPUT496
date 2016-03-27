@@ -57,13 +57,13 @@ vimdot PerformanceAnalysis/SingleSwitchTopo.dot
 
 ## Timestamp
 ### Dependencies
-Please make sure you have **build-essential**, **sshpass**, and **cmake**
-packages installed (sshpass is required for automatically supply password among
-virtual hosts set up by mininet).
+Please make sure you have **build-essential**, **sshpass**, **python-paramiko**
+, **python-scp**, and **cmake** packages installed (sshpass is required for
+automatically supply password among virtual hosts set up by mininet).
 If you are on a Debian-based machine (ubuntu for example), to install all the
 dependencies, issue:
 ```bash
-sudo apt-get install build-essential cmake cmake-extras extra-cmake-modules sshpass
+sudo apt-get install build-essential cmake cmake-extras extra-cmake-modules sshpass python-paramiko python-scp
 ```
 After all the above build dependencies are installed, make sure your gcc's
 version is at least 5.1 and cmake's version is above 3 if you are using the VM
@@ -86,7 +86,7 @@ make -j5 -C build
 sudo make -C build install
 ```
 where the *5* in the make invocation stands for the total number of CPUs (or
-CPU cores) plus one; the final compiled binary will reside in *build/src/* in
+CPU threads) plus one; the final compiled binary will reside in *build/src/* in
 addition to */usr/bin/*.
 
 **NOTE** if you are using the VM image provided by mininet (Ubuntu 14.04 LTS),
@@ -99,7 +99,7 @@ cmake -DCMAKE_C_COMPILER=/usr/bin/gcc-5 -DCMAKE_CXX_COMPILER=/usr/bin/g++-5 -Bbu
 ### Documentation
 Since this is a prototype program (at least for now), lots of documentation are
 left in-source without using appropriate doxygen formatting directives; full
-doxygen formatted documentation would be provided after this project goes out
+doxygen formatted documentation may be provided after this project goes out
 of prototype stage and the codebase becomes relatively stable.
 
 To generate the tentative documentation, install **doxygen** first:
