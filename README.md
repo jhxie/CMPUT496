@@ -57,9 +57,11 @@ vimdot PerformanceAnalysis/SingleSwitchTopo.dot
 
 ## Timestamp
 ### Dependencies
-Please make sure you have **build-essential**, **sshpass**, **python-paramiko**
-, **python-scp**, and **cmake** packages installed (sshpass is required for
-automatically supply password among virtual hosts set up by mininet).
+Please make sure you have **build-essential**, **sshpass**,
+**python-paramiko**, **python-scp**, and **cmake** packages installed (sshpass
+is required for automatically supply password among virtual hosts set up by
+mininet).
+
 If you are on a Debian-based machine (ubuntu for example), to install all the
 dependencies, issue:
 ```bash

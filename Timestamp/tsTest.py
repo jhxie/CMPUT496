@@ -34,14 +34,20 @@ TIMESTAMP_ATTRS = {0: "TIMESTAMP_OUTPUT",
 SSH_CMD = 0
 SSHD_PATH = 1
 SSHPASS_CMD = 2
-# Strictly speaking, the password is not a 'constant', but it is only set once
-# throughout the lifetime of this script.
-SSH_PASSWD = 3
+# Strictly speaking, username, password, and hostname are not 'constants',
+# but they are only set once throughout the lifetime of this script.
+SSH_USER = 3
+SSH_PASSWD = 4
+SSH_HNAME = 5
+SSH_CLIENT = 6
 
 SSH_ATTRS = {0: "ssh -oStrictHostKeyChecking=no ",
              1: "/usr/sbin/sshd",
              2: "./sshpass -p ",
-             3: str()}
+             3: str(),
+             4: str(),
+             5: str(),
+             6: None}
 
 # ---------------------------- GLOBAL CONSTANTS -------------------------------
 
@@ -56,7 +62,7 @@ def main():
                         " Measure Time Difference and Normalized Arrival" +\
                         " Time under 3 Metrics: Padding Message Size, " +\
                         " Loss Rate, and RTT"
-    passPrompt = "Password used for SSH among clusters: "
+    tsBinPath = sys.path[0] + "/build/src/ts"
 
     if "posix" != os.name:
         sys.exit("This script is only mean to be used on POSIX systems.")
@@ -80,36 +86,110 @@ def main():
     # Ensure both the build and source directories are always correctly
     # specified even when the script is invoked outside its own directory.
     if args.build:
-        autoGen(sys.path[0] + "/build", sys.path[0])
+        autoGen(buildDirectory=sys.path[0] + "/build",
+                sourceDirectory=sys.path[0])
 
+    if (not os.path.exists(tsBinPath)) or (os.path.isdir(tsBinPath)):
+        sys.exit("'ts' program cannot be located in its build directory.")
+
+    # SSH_ATTRS[SSH_USER] =
     SSH_ATTRS[SSH_PASSWD] = getpass.getpass(passPrompt)
+    # print(not SSH_ATTRS[SSH_PASSWD])
     # SSH_ATTRS[SSH_PASSWD] = ""
-
-    # for testType in ("padMsgSize", "RTT", "loss"):
-    #     testResult = tsGenResult(testType)
-    #     tsPrintResult(testType, testResult)
-    #     tsPlotResult(testType, testResult)
 
     # The SSHClient class has both __enter__ and __exit__ member functions
     # defined, so context manager syntax is used here to ensure the requested
     # resource is freed as soon as it goes out of scope (similar to the RAII
     # mechanism of c++).
-    with paramiko.SSHClient() as sshClient:
-        sshClient.load_system_host_keys()
-        sshClient.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        sshClient.connect("coldlake.cs.ualberta.ca",
-                          username="jxie2",
-                          look_for_keys=False)
-        # password="")
-        with sshClient.open_sftp() as sftpClient:
+    with paramiko.SSHClient() as SSH_ATTRS[SSH_CLIENT]:
+        SSH_ATTRS[SSH_CLIENT].load_system_host_keys()
+        SSH_ATTRS[SSH_CLIENT].set_missing_host_key_policy(
+            paramiko.AutoAddPolicy())
+        SSH_ATTRS[SSH_CLIENT].connect("coldlake.cs.ualberta.ca",
+                                      username="jxie2",
+                                      look_for_keys=False,
+                                      password=SSH_ATTRS[SSH_PASSWD])
+        with SSH_ATTRS[SSH_CLIENT].open_sftp() as sftpClient:
             # sftpClient.put("tsTestServer.py", "tsTestServer.py")
-            sftpClient.put(sys.path[0] + "/build/src/ts", "ts")
+            sftpClient.put(tsBinPath, os.path.basename(tsBinPath))
             sftpClient.put(sshPassBinPath, os.path.basename(sshPassBinPath))
 
-        sshClient.exec_command("chmod u+x ts")
-        stdin, stdout, stderr = sshClient.exec_command("./ts")
+        for binTarget in map(os.path.basename, (tsBinPath, sshPassBinPath)):
+            SSH_ATTRS[SSH_CLIENT].exec_command("chmod u+x " + binTarget)
+
+        stdin, stdout, stderr = SSH_ATTRS[SSH_CLIENT].exec_command("./ts")
         print(stdout.read())
         print(stderr.read())
+        stdin, stdout, stderr = SSH_ATTRS[SSH_CLIENT].exec_command("./sshpass")
+        print(stdout.read())
+        print(stderr.read())
+        # for testType in ("padMsgSize", "RTT", "loss"):
+        #     testResult = tsGenResult(testType)
+        #     tsPrintResult(testType, testResult)
+        #     tsPlotResult(testType, testResult)
+
+    # SSH_ATTRS[SSH_CLIENT] is out of scope here and should not be used
+    # later on.
+
+
+def loginValidate():
+    """
+    Validate all the information required to connect to the remote clusters
+    and store them in the global dictionary SSH_ATTRS.
+    The key-value pair actually modified are SSH_USER, SSH_PASSWD, SSH_HNAME.
+    """
+    userPrompt = "Username used for connect to clusters' head and among them: "
+    passPrompt = "Password used for SSH among clusters: "
+    hostPrompt = "Hostname or IP address for the clusters: "
+    validateGroup = (SSH_ATTRS[SSH_USER],
+                     SSH_ATTRS[SSH_PASSWD],
+                     SSH_ATTRS[SSH_HNAME])
+    # Pyflakes complains about the following, so 3 separate assignments are
+    # used instead.
+    # for attribute in validateGroup:
+    #     attribute = None
+    SSH_ATTRS[SSH_USER] = None
+    SSH_ATTRS[SSH_PASSWD] = None
+    SSH_ATTRS[SSH_HNAME] = None
+
+    while None in validateGroup:
+
+        if not SSH_ATTRS[SSH_USER]:
+            try:
+                SSH_ATTRS[SSH_USER] = str(input(userPrompt))
+                if not SSH_ATTRS[SSH_USER].isalnum():
+                    SSH_ATTRS[SSH_USER] = None
+            except:
+                SSH_ATTRS[SSH_USER] = None
+
+        if not SSH_ATTRS[SSH_PASSWD]:
+            try:
+                SSH_ATTRS[SSH_PASSWD] = getpass.getpass(passPrompt)
+                if "\t " in SSH_ATTRS[SSH_PASSWD]:
+                    SSH_ATTRS[SSH_PASSWD] = None
+            except:
+                SSH_ATTRS[SSH_PASSWD] = None
+
+        if not SSH_ATTRS[SSH_HNAME]:
+            try:
+                SSH_ATTRS[SSH_HNAME] = str(input(hostPrompt))
+                if 0 != os.system("ping -c 1 " + SSH_ATTRS[SSH_HNAME] +
+                                  " > /dev/null 2>&1"):
+                    SSH_ATTRS[SSH_HNAME] = None
+            except:
+                SSH_ATTRS[SSH_HNAME] = None
+
+
+def hostConnectionCheck():
+    """
+    Check connections among the remote cluster by invoking 'ruptime' and 'ping'
+    programs.
+    """
+    pingCommand = "{0} '{1}' {2} {3}@{4} ping -c 3 {5}"
+    print("!! Dumping host connections !!")
+    _, stdout, _ = SSH_ATTRS[SSH_CLIENT].exec_command("ruptime")
+    print(stdout.read())
+    print("!! Testing network connectivity !!")
 
 
 def tsTestPadMsgSize(padMsgSize, numOfRuns, msgSent):
@@ -128,16 +208,12 @@ def tsTestPadMsgSize(padMsgSize, numOfRuns, msgSent):
     tsCommand = "{0} '{1}' {2} {3}@{4} ./ts -s -b {6} -c {7} | " +\
                 "{0} '{1}' {2} {3}@{5} ./ts -r -b {6} -c {7} "
 
-    # tsCommand = "ts -s -b {0} -c {1} | {2} '{3}' {4}{5} ts -r -b {0} -c {1}"
-
     print("!! Performing TimeStamp Test Using Padding Message Size !!")
-    topo = SingleSwitchTopo(n=2)
-    net = Mininet(topo, link=TCLink)
-    net.start()
     print("!! Dumping host connections !!")
-    dumpNodeConnections(net.hosts)
+    _, stdout, _ = SSH_ATTRS[SSH_CLIENT].exec_command("ruptime")
+    print(stdout.read())
     print("!! Testing network connectivity !!")
-    net.pingAll()
+    # net.pingAll()
 
     h1, h2 = net.getNodeByName("h1", "h2")
     h1.cmd(SSH_ATTRS[SSHD_PATH])
@@ -193,7 +269,8 @@ def tsTestLoss(lossRate, numOfRuns, msgSent):
     net = Mininet(topo, link=TCLink)
     net.start()
     print("!! Dumping host connections !!")
-    dumpNodeConnections(net.hosts)
+    _, stdout, _ = SSH_ATTRS[SSH_CLIENT].exec_command("ruptime")
+    print(stdout.read())
     print("!! Testing network connectivity !!")
     net.pingAll()
 
@@ -246,7 +323,8 @@ def tsTestRTT(RTT, numOfRuns, msgSent):
     net = Mininet(topo, link=TCLink)
     net.start()
     print("!! Dumping host connections !!")
-    dumpNodeConnections(net.hosts)
+    _, stdout, _ = SSH_ATTRS[SSH_CLIENT].exec_command("ruptime")
+    print(stdout.read())
     print("!! Testing network connectivity !!")
     net.pingAll()
 
