@@ -47,7 +47,8 @@ instead.
 is impractical to list all of the results here.
 
 ## Padding Message Size
-Refer to the plot [tsTestPadMsgSize.png](plot/tsTestPadMsgSize.png).
+Refer to the plot
+[tsMiniNetTestPadMsgSize.png](plot/tsMiniNetTestPadMsgSize.png).
 
 2 Bytes
 
@@ -123,7 +124,7 @@ is set, the normalized arrival time monotonically increases and rises above
 the 1000 miliseconds upper bound in the plot when 800 timestamps are about to
 be sent.
 ## Loss Rate
-Refer to the plot [tsTestLoss.png](plot/tsTestLoss.png).
+Refer to the plot [tsMiniNetTestLoss.png](plot/tsMiniNetTestLoss.png).
 
 0.1 %
 
@@ -191,7 +192,7 @@ listed above) with very litte fluctuations and does not seem to change relative
 to number of timestamp sent.
 
 ## RTT
-Refer to the plot [tsTestRTT.png](plot/tsTestRTT.png).
+Refer to the plot [tsMiniNetTestRTT.png](plot/tsMiniNetTestRTT.png).
 
 10 Miliseconds
 

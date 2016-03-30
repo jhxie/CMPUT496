@@ -12,17 +12,21 @@ To avoid potential incompatibility with different shells (bash ksh tcsh, etc),
 python is used rather than usual shell scripts.
 """
 
+# --------------------------------- MODULES -----------------------------------
 from __future__ import print_function
 from distutils import spawn
 from util import autoGen
 
 import argparse
 import getpass
+import itertools
 import matplotlib.pyplot as plt
 import os
 import paramiko
-import re
+import random
 import sys
+# --------------------------------- MODULES -----------------------------------
+
 
 # ---------------------------- GLOBAL CONSTANTS -------------------------------
 ENVNAME = 0
@@ -92,10 +96,10 @@ def main():
     if (not os.path.exists(tsBinPath)) or (os.path.isdir(tsBinPath)):
         sys.exit("'ts' program cannot be located in its build directory.")
 
-    # SSH_ATTRS[SSH_USER] =
-    SSH_ATTRS[SSH_PASSWD] = getpass.getpass(passPrompt)
-    # print(not SSH_ATTRS[SSH_PASSWD])
+    loginValidate()
+    # SSH_ATTRS[SSH_USER] = ""
     # SSH_ATTRS[SSH_PASSWD] = ""
+    # SSH_ATTRS[SSH_HNAME] = ""
 
     # The SSHClient class has both __enter__ and __exit__ member functions
     # defined, so context manager syntax is used here to ensure the requested
@@ -105,11 +109,13 @@ def main():
         SSH_ATTRS[SSH_CLIENT].load_system_host_keys()
         SSH_ATTRS[SSH_CLIENT].set_missing_host_key_policy(
             paramiko.AutoAddPolicy())
-        SSH_ATTRS[SSH_CLIENT].connect("coldlake.cs.ualberta.ca",
-                                      username="jxie2",
+        SSH_ATTRS[SSH_CLIENT].connect(SSH_ATTRS[SSH_HNAME],
+                                      username=SSH_ATTRS[SSH_USER],
                                       look_for_keys=False,
                                       password=SSH_ATTRS[SSH_PASSWD])
         with SSH_ATTRS[SSH_CLIENT].open_sftp() as sftpClient:
+            # Assume the current machine executing this script has the same
+            # ABI as all the cluster machines.
             # sftpClient.put("tsTestServer.py", "tsTestServer.py")
             sftpClient.put(tsBinPath, os.path.basename(tsBinPath))
             sftpClient.put(sshPassBinPath, os.path.basename(sshPassBinPath))
@@ -117,16 +123,10 @@ def main():
         for binTarget in map(os.path.basename, (tsBinPath, sshPassBinPath)):
             SSH_ATTRS[SSH_CLIENT].exec_command("chmod u+x " + binTarget)
 
-        stdin, stdout, stderr = SSH_ATTRS[SSH_CLIENT].exec_command("./ts")
-        print(stdout.read())
-        print(stderr.read())
-        stdin, stdout, stderr = SSH_ATTRS[SSH_CLIENT].exec_command("./sshpass")
-        print(stdout.read())
-        print(stderr.read())
-        # for testType in ("padMsgSize", "RTT", "loss"):
-        #     testResult = tsGenResult(testType)
-        #     tsPrintResult(testType, testResult)
-        #     tsPlotResult(testType, testResult)
+        for testType in ("padMsgSize", "RTT", "loss"):
+            testResult = tsGenResult(testType)
+            tsPrintResult(testType, testResult)
+            tsPlotResult(testType, testResult)
 
     # SSH_ATTRS[SSH_CLIENT] is out of scope here and should not be used
     # later on.
@@ -183,13 +183,24 @@ def loginValidate():
 def hostConnectionCheck():
     """
     Check connections among the remote cluster by invoking 'ruptime' and 'ping'
-    programs.
+    programs, respectively.
     """
     pingCommand = "{0} '{1}' {2} {3}@{4} ping -c 3 {5}"
+    hosts = ("cold11", "cold12")
+
     print("!! Dumping host connections !!")
     _, stdout, _ = SSH_ATTRS[SSH_CLIENT].exec_command("ruptime")
     print(stdout.read())
     print("!! Testing network connectivity !!")
+    # Note the hosts tested here are hard coded and only cold11 and cold12
+    # are checked.
+    # Reference
+    # https://docs.python.org/2/library/itertools.html
+    for hostPair in itertools.permutations(hosts):
+        print(hostPair[0] + " -> " + hostPair[1])
+        _, stdout, _ = SSH_ATTRS[SSH_CLIENT].exec_command(pingCommand.format(
+            SSH_ATTRS[SSHPASS_CMD], SSH_ATTRS[SSH_PASSWD], SSH_ATTRS[SSH_CMD],
+            SSH_ATTRS[SSH_USER], hostPair[0], hostPair[1]))
 
 
 def tsTestPadMsgSize(padMsgSize, numOfRuns, msgSent):
@@ -204,38 +215,29 @@ def tsTestPadMsgSize(padMsgSize, numOfRuns, msgSent):
     delta = list()
     normalized = list()
     padMsgSizeResult = list()
-    tsOutput = str()
+    tsOutput = None
     tsCommand = "{0} '{1}' {2} {3}@{4} ./ts -s -b {6} -c {7} | " +\
                 "{0} '{1}' {2} {3}@{5} ./ts -r -b {6} -c {7} "
 
     print("!! Performing TimeStamp Test Using Padding Message Size !!")
-    print("!! Dumping host connections !!")
-    _, stdout, _ = SSH_ATTRS[SSH_CLIENT].exec_command("ruptime")
-    print(stdout.read())
-    print("!! Testing network connectivity !!")
-    # net.pingAll()
-
-    h1, h2 = net.getNodeByName("h1", "h2")
-    h1.cmd(SSH_ATTRS[SSHD_PATH])
-    h2.cmd(SSH_ATTRS[SSHD_PATH])
+    hostConnectionCheck()
     print("!! Testing Time Delta/Normalized Arrival Time" +
-          "Between h1 ({0}) and h2 ({1}) !!"
-          .format(h1.IP(), h2.IP()))
+          "Between cold11 and cold12 !!")
 
     # From section 7.1.3 'Format String Syntax' of the official python doc:
     # https://docs.python.org/2/library/string.html
     print("Padding Message Size -------- [{0} byte]".format(str(padMsgSize)))
-    tsOutput = h1.cmd(tsCommand
-                      .format(padMsgSize, msgSent,
-                              SSH_ATTRS[SSHPASS_CMD], SSH_ATTRS[SSH_PASSWD],
-                              SSH_ATTRS[SSH_CMD], h2.IP()))
+    _, tsOutput, _ = SSH_ATTRS[SSH_CLIENT].exec_command(tsCommand.format(
+        SSH_ATTRS[SSHPASS_CMD], SSH_ATTRS[SSH_PASSWD], SSH_ATTRS[SSH_CMD],
+        SSH_ATTRS[SSH_USER],    "cold11",              "cold12",
+        str(padMsgSize),        str(msgSent)))
     # The extra splicing is used to remove the first line: which is
     # 'DELTA,NORMALIZED'.
+    tsOutput = tsOutput.read()
     for pair in tsOutput.split()[1:]:
         delta.append(int(pair.split(",")[0]))
         normalized.append(int(pair.split(",")[1]))
 
-    net.stop()
     padMsgSizeResult.append(delta)
     padMsgSizeResult.append(normalized)
     return padMsgSizeResult
@@ -243,8 +245,8 @@ def tsTestPadMsgSize(padMsgSize, numOfRuns, msgSent):
 
 def tsTestLoss(lossRate, numOfRuns, msgSent):
     """
-    Send 'msgSent' number of messages with 'lossRate' between the two virtual
-    hosts.
+    Send 'msgSent' number of messages with 'lossRate' between cold11 and cold12
+    in the coldlake cluster.
     For now 'numOfRuns' parameter is IGNORED.
     """
     for argument in (numOfRuns, msgSent):
@@ -257,46 +259,48 @@ def tsTestLoss(lossRate, numOfRuns, msgSent):
     delta = list()
     normalized = list()
     lossResult = list()
+    cold11Prefix = "{0} '{1}' {2} {3}@{4} ".format(SSH_ATTRS[SSHPASS_CMD],
+                                                   SSH_ATTRS[SSH_PASSWD],
+                                                   SSH_ATTRS[SSH_CMD],
+                                                   SSH_ATTRS[SSH_USER],
+                                                   "cold11")
+    cold12Prefix = "{0} '{1}' {2} {3}@{4} ".format(SSH_ATTRS[SSHPASS_CMD],
+                                                   SSH_ATTRS[SSH_PASSWD],
+                                                   SSH_ATTRS[SSH_CMD],
+                                                   SSH_ATTRS[SSH_USER],
+                                                   "cold12")
     # Thanks Nooshin for giving proper instructions to properly use 'tc' and
     # avoid a potential pitfall!
-    tcCommand = "tc qdisc add dev {0} root netem limit 10000000000 loss {1}%"
-    tsCommand = "ts -s -c {0} | {1} '{2}' {3}{4} ts -r -c {0}"
-    tsOutput = str()
-    interfaceName = str()
+    # ifconfigCommand = "{0} '{1}' {2} {3}@{4} ifconfig"
+    tcCommand = "{0} tc qdisc add dev {1} root " +\
+        "netem limit 10000000000 loss {2}%"
+    tsCommand = "{0} ./ts -s -c {2} | {1} ./ts -r -c {2} "
+    tsOutput = None
+    # interfaceName = None
 
     print("!! Performing TimeStamp Test Using Loss Rate !!")
-    topo = SingleSwitchTopo(n=2)
-    net = Mininet(topo, link=TCLink)
-    net.start()
-    print("!! Dumping host connections !!")
-    _, stdout, _ = SSH_ATTRS[SSH_CLIENT].exec_command("ruptime")
-    print(stdout.read())
-    print("!! Testing network connectivity !!")
-    net.pingAll()
+    hostConnectionCheck()
 
-    h1, h2 = net.getNodeByName("h1", "h2")
-    h1.cmd(SSH_ATTRS[SSHD_PATH])
-    h2.cmd(SSH_ATTRS[SSHD_PATH])
-    interfaceName = h1.cmd("ifconfig")
-    # The interface name contains character '-', so adjustment is made to
-    # account for that other than the word character class itself.
-    interfaceName = re.findall(r"[\w'-]+", interfaceName)[0]
+    # The network interface name is hard-coded for now.
+    # _, interfaceName, _ = SSH_ATTRS[SSH_CLIENT].exec_command(
+    #     ifconfigCommand.format(SSH_ATTRS[SSHPASS_CMD], SSH_ATTRS[SSH_PASSWD],
+    #                            SSH_ATTRS[SSH_CMD],     SSH_ATTRS[SSH_USER],
+    #                            "cold11"))
+    # interfaceName = interfaceName.read()
     print("!! Testing Time Delta/Normalized Arrival Time" +
-          "Between h1 ({0}) and h2 ({1}) !!"
-          .format(h1.IP(), h2.IP()))
+          "Between cold11 and cold12 !!")
 
     print("Loss Rate -------- [{0} %]".format(lossRate))
-    h1.cmd(tcCommand.format(interfaceName, lossRate))
-    tsOutput = h1.cmd(tsCommand.format(msgSent,
-                                       SSH_ATTRS[SSHPASS_CMD],
-                                       SSH_ATTRS[SSH_PASSWD],
-                                       SSH_ATTRS[SSH_CMD],
-                                       h2.IP()))
+    SSH_ATTRS[SSH_CLIENT].exec_command(tcCommand.format(cold11Prefix,
+                                                        "eth0",
+                                                        lossRate))
+    _, tsOutput, _ = SSH_ATTRS[SSH_CLIENT].exec_command(
+        tsCommand.format(cold11Prefix, cold12Prefix, msgSent))
+    tsOutput = tsOutput.read()
     for pair in tsOutput.split()[1:]:
         delta.append(int(pair.split(",")[0]))
         normalized.append(int(pair.split(",")[1]))
 
-    net.stop()
     lossResult.append(delta)
     lossResult.append(normalized)
     return lossResult
@@ -304,7 +308,8 @@ def tsTestLoss(lossRate, numOfRuns, msgSent):
 
 def tsTestRTT(RTT, numOfRuns, msgSent):
     """
-    Send 'msgSent' number of messages with 'RTT' set by mininet.
+    Send 'msgSent' number of messages with 'RTT' indirectly set by the 'tc'
+    program.
     For now 'numOfRuns' parameter is IGNORED.
     """
     for argument in (RTT, numOfRuns, msgSent):
@@ -314,38 +319,38 @@ def tsTestRTT(RTT, numOfRuns, msgSent):
     delta = list()
     normalized = list()
     RTTResult = list()
-    tsCommand = "ts -s -c {0} | {1} '{2}' {3}{4} ts -r -c {0}"
+    cold11Prefix = "{0} '{1}' {2} {3}@{4} ".format(SSH_ATTRS[SSHPASS_CMD],
+                                                   SSH_ATTRS[SSH_PASSWD],
+                                                   SSH_ATTRS[SSH_CMD],
+                                                   SSH_ATTRS[SSH_USER],
+                                                   "cold11")
+    cold12Prefix = "{0} '{1}' {2} {3}@{4} ".format(SSH_ATTRS[SSHPASS_CMD],
+                                                   SSH_ATTRS[SSH_PASSWD],
+                                                   SSH_ATTRS[SSH_CMD],
+                                                   SSH_ATTRS[SSH_USER],
+                                                   "cold12")
+    tcCommand = "{0} tc qdisc add dev {1} root " +\
+        "netem limit 10000000000 delay {2}ms"
+    tsCommand = "{0} ./ts -s -c {2} | {1} ./ts -r -c {2} "
+    tsOutput = None
 
     print("!! Performing TimeStamp Test Using RTT !!")
-    # Note the RTT is indirectly set by the 'delay' option
-    SingleSwitchTopo.setBuildOption("delay", RTT // 2)
-    topo = SingleSwitchTopo(n=2)
-    net = Mininet(topo, link=TCLink)
-    net.start()
-    print("!! Dumping host connections !!")
-    _, stdout, _ = SSH_ATTRS[SSH_CLIENT].exec_command("ruptime")
-    print(stdout.read())
-    print("!! Testing network connectivity !!")
-    net.pingAll()
+    hostConnectionCheck()
 
-    h1, h2 = net.getNodeByName("h1", "h2")
-    h1.cmd(SSH_ATTRS[SSHD_PATH])
-    h2.cmd(SSH_ATTRS[SSHD_PATH])
     print("!! Testing Time Delta/Normalized Arrival Time" +
-          "Between h1 ({0}) and h2 ({1}) !!"
-          .format(h1.IP(), h2.IP()))
+          "Between cold11 and cold12 !!")
 
     print("RTT -------- [{0} ms]".format(str(RTT)))
-    tsOutput = h1.cmd(tsCommand.format(msgSent,
-                                       SSH_ATTRS[SSHPASS_CMD],
-                                       SSH_ATTRS[SSH_PASSWD],
-                                       SSH_ATTRS[SSH_CMD],
-                                       h2.IP()))
+    SSH_ATTRS[SSH_CLIENT].exec_command(tcCommand.format(cold11Prefix,
+                                                        "eth0",
+                                                        RTT / 2))
+    _, tsOutput, _ = SSH_ATTRS[SSH_CLIENT].exec_command(
+        tsCommand.format(cold11Prefix, cold12Prefix, msgSent))
+    tsOutput = tsOutput.read()
     for pair in tsOutput.split()[1:]:
         delta.append(int(pair.split(",")[0]))
         normalized.append(int(pair.split(",")[1]))
 
-    net.stop()
     RTTResult.append(delta)
     RTTResult.append(normalized)
     return RTTResult
@@ -368,13 +373,18 @@ def tsGenResult(test):
     if not isinstance(test, str) or test not in ("padMsgSize", "loss", "RTT"):
         raise ValueError("argument must be string," +
                          "and one of padMsgSize, loss, RTT")
-    os.system("cd /tmp/ && rm -f " + TIMESTAMP_ATTRS[REPORTNAME])
-    # Environment variables set in the host will not be seen in the virtual
-    # hosts set up by mininet, left as it is just in case
-    os.system("export " + TIMESTAMP_ATTRS[ENVNAME] + "=" +
-              TIMESTAMP_ATTRS[REPORTNAME])
+    unsetCommand = "{0} '{1}' {2} {3}@{4} unset {5}"
+    hosts = ("cold11", "cold12")
+    os.system("unset " + TIMESTAMP_ATTRS[ENVNAME])
     testResults = list()
 
+    for host in hosts:
+        print("!! Unsetting Environment Variable {0} on Host {1} !!".format(
+            TIMESTAMP_ATTRS[ENVNAME], host))
+        SSH_ATTRS[SSH_CLIENT].exec_command(unsetCommand.format(
+            SSH_ATTRS[SSHPASS_CMD], SSH_ATTRS[SSH_PASSWD],
+            SSH_ATTRS[SSH_CMD],     SSH_ATTRS[SSH_USER],
+            host,                   TIMESTAMP_ATTRS[ENVNAME]))
     if "padMsgSize" == test:
         for padMsgSize in (2, 32, 512, 8192):
             testResults.append(tsTestPadMsgSize(padMsgSize, 1, 1024))

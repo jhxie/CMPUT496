@@ -268,7 +268,7 @@ def tsPlotResult(test, tsGenResultList):
         raise ValueError("tsGenResultList must be of list type " +
                          "and cannot be empty")
 
-    outputPlotName = "tsTest" + test[0].upper() + test[1:] + ".png"
+    outputPlotName = "tsMiniNetTest" + test[0].upper() + test[1:] + ".png"
     plotDirectory = "./report/plot"
     # Based on an example from
     # http://matplotlib.org/examples/pylab_examples/subplots_demo.html
@@ -354,7 +354,8 @@ def tsPrintResult(test, resultList):
     if not resultList or not isinstance(resultList, list):
         raise ValueError("resultList must be of list type and cannot be empty")
 
-    resultFileName = "ts" + test[0].upper() + test[1:] + "TestResult.txt"
+    resultFileName = "tsMiniNet" + test[0].upper() +\
+        test[1:] + "TestResult.txt"
     resultFileDirectory = "report/"
     # Since the 2 sublists within each record are of same length
     # (1024 for now), it is safe to choose either
