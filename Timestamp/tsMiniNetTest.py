@@ -112,7 +112,7 @@ def tsTestLoss(lossRate, numOfRuns, msgSent):
             raise ValueError("numOfRuns msgSent must be non-negative integers")
 
     if not isinstance(lossRate, float) or .0 > lossRate:
-        raise ValueError("lossRate must be non-negative integers")
+        raise ValueError("lossRate must be non-negative fractions")
 
     delta = list()
     normalized = list()

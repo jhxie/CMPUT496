@@ -5,9 +5,9 @@ script with the following:
 sudo python tsMiniNetTest.py -b
 ```
 after proper password is entered, the 3 generated reports named
-* *tsLossTestResult.txt*
-* *tsPadMsgSizeTestResult.txt*
-* *tsRTTTestResult.txt*
+* *tsMiniNetLossTestResult.txt*
+* *tsMiniNetPadMsgSizeTestResult.txt*
+* *tsMiniNetRTTTestResult.txt*
 
 will reside in this directory.
 ## Overview

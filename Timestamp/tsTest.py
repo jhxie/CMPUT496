@@ -215,9 +215,19 @@ def tsTestPadMsgSize(padMsgSize, numOfRuns, msgSent):
     delta = list()
     normalized = list()
     padMsgSizeResult = list()
+    cold11Prefix = "{0} '{1}' {2} {3}@{4} ".format(SSH_ATTRS[SSHPASS_CMD],
+                                                   SSH_ATTRS[SSH_PASSWD],
+                                                   SSH_ATTRS[SSH_CMD],
+                                                   SSH_ATTRS[SSH_USER],
+                                                   "cold11")
+    cold12Prefix = "{0} '{1}' {2} {3}@{4} ".format(SSH_ATTRS[SSHPASS_CMD],
+                                                   SSH_ATTRS[SSH_PASSWD],
+                                                   SSH_ATTRS[SSH_CMD],
+                                                   SSH_ATTRS[SSH_USER],
+                                                   "cold12")
+    tcCommand = "{0} tc qdisc del dev {1} root"
+    tsCommand = "{0} ./ts -s -b {2} -c {3} | {1} ./ts -r -b {2} -c {3} "
     tsOutput = None
-    tsCommand = "{0} '{1}' {2} {3}@{4} ./ts -s -b {6} -c {7} | " +\
-                "{0} '{1}' {2} {3}@{5} ./ts -r -b {6} -c {7} "
 
     print("!! Performing TimeStamp Test Using Padding Message Size !!")
     hostConnectionCheck()
@@ -227,10 +237,13 @@ def tsTestPadMsgSize(padMsgSize, numOfRuns, msgSent):
     # From section 7.1.3 'Format String Syntax' of the official python doc:
     # https://docs.python.org/2/library/string.html
     print("Padding Message Size -------- [{0} byte]".format(str(padMsgSize)))
-    _, tsOutput, _ = SSH_ATTRS[SSH_CLIENT].exec_command(tsCommand.format(
-        SSH_ATTRS[SSHPASS_CMD], SSH_ATTRS[SSH_PASSWD], SSH_ATTRS[SSH_CMD],
-        SSH_ATTRS[SSH_USER],    "cold11",              "cold12",
-        str(padMsgSize),        str(msgSent)))
+    # To prevent from the existing classless qdisc from interfering with
+    # the padding message tests, so they are deleted.
+    cold11tcCommand = tcCommand.format(cold11Prefix, "eth0")
+    SSH_ATTRS[SSH_CLIENT].exec_command(cold11tcCommand)
+    _, tsOutput, _ = SSH_ATTRS[SSH_CLIENT].exec_command(
+        tsCommand.format(cold11Prefix,    cold12Prefix,
+                         str(padMsgSize), str(msgSent)))
     # The extra splicing is used to remove the first line: which is
     # 'DELTA,NORMALIZED'.
     tsOutput = tsOutput.read()
@@ -254,7 +267,7 @@ def tsTestLoss(lossRate, numOfRuns, msgSent):
             raise ValueError("numOfRuns msgSent must be non-negative integers")
 
     if not isinstance(lossRate, float) or .0 > lossRate:
-        raise ValueError("lossRate must be non-negative integers")
+        raise ValueError("lossRate must be non-negative fractions")
 
     delta = list()
     normalized = list()
@@ -291,9 +304,11 @@ def tsTestLoss(lossRate, numOfRuns, msgSent):
           "Between cold11 and cold12 !!")
 
     print("Loss Rate -------- [{0} %]".format(lossRate))
-    SSH_ATTRS[SSH_CLIENT].exec_command(tcCommand.format(cold11Prefix,
-                                                        "eth0",
-                                                        lossRate))
+    cold11tcCommand = tcCommand.format(cold11Prefix, "eth0", lossRate)
+    SSH_ATTRS[SSH_CLIENT].exec_command(cold11tcCommand)
+    SSH_ATTRS[SSH_CLIENT].exec_command(cold11tcCommand.replace("add",
+                                                               "change",
+                                                               1))
     _, tsOutput, _ = SSH_ATTRS[SSH_CLIENT].exec_command(
         tsCommand.format(cold11Prefix, cold12Prefix, msgSent))
     tsOutput = tsOutput.read()
@@ -341,9 +356,11 @@ def tsTestRTT(RTT, numOfRuns, msgSent):
           "Between cold11 and cold12 !!")
 
     print("RTT -------- [{0} ms]".format(str(RTT)))
-    SSH_ATTRS[SSH_CLIENT].exec_command(tcCommand.format(cold11Prefix,
-                                                        "eth0",
-                                                        RTT / 2))
+    cold11tcCommand = tcCommand.format(cold11Prefix, "eth0", RTT / 2)
+    SSH_ATTRS[SSH_CLIENT].exec_command(cold11tcCommand)
+    SSH_ATTRS[SSH_CLIENT].exec_command(cold11tcCommand.replace("add",
+                                                               "change",
+                                                               1))
     _, tsOutput, _ = SSH_ATTRS[SSH_CLIENT].exec_command(
         tsCommand.format(cold11Prefix, cold12Prefix, msgSent))
     tsOutput = tsOutput.read()
