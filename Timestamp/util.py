@@ -4,6 +4,7 @@
 Module for various utility functions; for now it only has autoGen(), which
 builds the executable for the Timestamp (ts) program.
 """
+from distutils import spawn
 
 import multiprocessing
 import os
@@ -20,6 +21,12 @@ def autoGen(buildDirectory="./build", sourceDirectory="."):
     to the newest version according to the instructions given in the top level
     README.md file, otherwise this function would not work properly.
     """
+    arguments = (buildDirectory, sourceDirectory)
+    if not all(arguments) or not all((isinstance(i, str) for i in arguments)):
+        raise ValueError("arguments must be directories represented by string")
+
+    if not spawn.find_executable("cmake"):
+        raise ValueError("cmake must be installed to build the executable")
 
     logicalCPUCount = str(multiprocessing.cpu_count() + 1)
     # Note the cmake commands used are not shown in official documentation:

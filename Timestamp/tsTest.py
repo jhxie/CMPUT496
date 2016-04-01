@@ -134,29 +134,25 @@ def main():
 
 def loginValidate():
     """
-    Validate all the information required to connect to the remote clusters
+    Validate all the credentials required to connect to the remote clusters
     and store them in the global dictionary SSH_ATTRS.
     The key-value pair actually modified are SSH_USER, SSH_PASSWD, SSH_HNAME.
     """
     userPrompt = "Username used for connect to clusters' head and among them: "
     passPrompt = "Password used for SSH among clusters: "
-    hostPrompt = "Hostname or IP address for the clusters: "
-    validateGroup = (SSH_ATTRS[SSH_USER],
-                     SSH_ATTRS[SSH_PASSWD],
-                     SSH_ATTRS[SSH_HNAME])
+    hostPrompt = "Hostname or IP address for the clusters " +\
+        "(empty defaults to the coldlake cluster): "
+    validateGroup = (SSH_USER, SSH_PASSWD, SSH_HNAME)
     # Pyflakes complains about the following, so 3 separate assignments are
     # used instead.
-    # for attribute in validateGroup:
-    #     attribute = None
-    SSH_ATTRS[SSH_USER] = None
-    SSH_ATTRS[SSH_PASSWD] = None
-    SSH_ATTRS[SSH_HNAME] = None
+    for attribute in validateGroup:
+        SSH_ATTRS[attribute] = None
 
-    while None in validateGroup:
+    while not all((SSH_ATTRS[attribute] for attribute in validateGroup)):
 
         if not SSH_ATTRS[SSH_USER]:
             try:
-                SSH_ATTRS[SSH_USER] = str(input(userPrompt))
+                SSH_ATTRS[SSH_USER] = raw_input(userPrompt)
                 if not SSH_ATTRS[SSH_USER].isalnum():
                     SSH_ATTRS[SSH_USER] = None
             except:
@@ -172,7 +168,8 @@ def loginValidate():
 
         if not SSH_ATTRS[SSH_HNAME]:
             try:
-                SSH_ATTRS[SSH_HNAME] = str(input(hostPrompt))
+                SSH_ATTRS[SSH_HNAME] = raw_input(hostPrompt) or \
+                    "coldlake.cs.ualberta.ca"
                 if 0 != os.system("ping -c 1 " + SSH_ATTRS[SSH_HNAME] +
                                   " > /dev/null 2>&1"):
                     SSH_ATTRS[SSH_HNAME] = None
