@@ -15,6 +15,7 @@ python is used rather than usual shell scripts.
 # --------------------------------- MODULES -----------------------------------
 from __future__ import print_function
 from distutils import spawn
+from util import ANSIColor
 from util import autoGen
 
 import argparse
@@ -24,11 +25,16 @@ import matplotlib.pyplot as plt
 import os
 import paramiko
 import random
+import string
 import sys
 # --------------------------------- MODULES -----------------------------------
 
 
 # ---------------------------- GLOBAL CONSTANTS -------------------------------
+TC_CMD = 0
+
+TC_ATTRS = {0: "/sbin/tc"}
+
 ENVNAME = 0
 REPORTNAME = 1
 
@@ -66,7 +72,13 @@ def main():
                         " Measure Time Difference and Normalized Arrival" +\
                         " Time under 3 Metrics: Padding Message Size, " +\
                         " Loss Rate, and RTT"
+    ABIWarning = "ASSUME SAME ABI AS THE REMOTE HOSTS"
+
     tsBinPath = sys.path[0] + "/build/src/ts"
+
+    print("-" * 79 + "\n")
+    print(ANSIColor.BLUE + string.center(ABIWarning, 79) + ANSIColor.RESET)
+    print("\n" + "-" * 79)
 
     if "posix" != os.name:
         sys.exit("This script is only mean to be used on POSIX systems.")
@@ -99,7 +111,7 @@ def main():
     loginValidate()
     # SSH_ATTRS[SSH_USER] = ""
     # SSH_ATTRS[SSH_PASSWD] = ""
-    # SSH_ATTRS[SSH_HNAME] = ""
+    # SSH_ATTRS[SSH_HNAME] = "coldlake.cs.ualberta.ca"
 
     # The SSHClient class has both __enter__ and __exit__ member functions
     # defined, so context manager syntax is used here to ensure the requested
@@ -109,10 +121,12 @@ def main():
         SSH_ATTRS[SSH_CLIENT].load_system_host_keys()
         SSH_ATTRS[SSH_CLIENT].set_missing_host_key_policy(
             paramiko.AutoAddPolicy())
-        SSH_ATTRS[SSH_CLIENT].connect(SSH_ATTRS[SSH_HNAME],
+        SSH_ATTRS[SSH_CLIENT].connect(hostname=SSH_ATTRS[SSH_HNAME],
+                                      port=22,
                                       username=SSH_ATTRS[SSH_USER],
-                                      look_for_keys=False,
-                                      password=SSH_ATTRS[SSH_PASSWD])
+                                      look_for_keys=True,
+                                      password=SSH_ATTRS[SSH_PASSWD],
+                                      compress=False)
         with SSH_ATTRS[SSH_CLIENT].open_sftp() as sftpClient:
             # Assume the current machine executing this script has the same
             # ABI as all the cluster machines.
@@ -209,6 +223,7 @@ def tsTestPadMsgSize(padMsgSize, numOfRuns, msgSent):
         if not isinstance(argument, int) or 0 > argument:
             raise ValueError("argument must be non-negative integers")
 
+    testMsg = "Performing TimeStamp Test Using Padding Message Size"
     delta = list()
     normalized = list()
     padMsgSizeResult = list()
@@ -226,8 +241,11 @@ def tsTestPadMsgSize(padMsgSize, numOfRuns, msgSent):
     tsCommand = "{0} ./ts -s -b {2} -c {3} | {1} ./ts -r -b {2} -c {3} "
     tsOutput = None
 
-    print("!! Performing TimeStamp Test Using Padding Message Size !!")
+    print("-" * 79 + "\n")
+    print(ANSIColor.CYAN + string.center(testMsg, 79) + ANSIColor.RESET)
+    print("\n" + "-" * 79)
     hostConnectionCheck()
+
     print("!! Testing Time Delta/Normalized Arrival Time" +
           "Between cold11 and cold12 !!")
 
@@ -266,6 +284,7 @@ def tsTestLoss(lossRate, numOfRuns, msgSent):
     if not isinstance(lossRate, float) or .0 > lossRate:
         raise ValueError("lossRate must be non-negative fractions")
 
+    testMsg = "Performing TimeStamp Test Using Loss Rate"
     delta = list()
     normalized = list()
     lossResult = list()
@@ -288,7 +307,9 @@ def tsTestLoss(lossRate, numOfRuns, msgSent):
     tsOutput = None
     # interfaceName = None
 
-    print("!! Performing TimeStamp Test Using Loss Rate !!")
+    print("-" * 79 + "\n")
+    print(ANSIColor.CYAN + string.center(testMsg, 79) + ANSIColor.RESET)
+    print("\n" + "-" * 79)
     hostConnectionCheck()
 
     # The network interface name is hard-coded for now.
@@ -328,6 +349,7 @@ def tsTestRTT(RTT, numOfRuns, msgSent):
         if not isinstance(argument, int) or 0 > argument:
             raise ValueError("argument must be non-negative integers")
 
+    testMsg = "Performing TimeStamp Test Using RTT"
     delta = list()
     normalized = list()
     RTTResult = list()
@@ -346,7 +368,9 @@ def tsTestRTT(RTT, numOfRuns, msgSent):
     tsCommand = "{0} ./ts -s -c {2} | {1} ./ts -r -c {2} "
     tsOutput = None
 
-    print("!! Performing TimeStamp Test Using RTT !!")
+    print("-" * 79 + "\n")
+    print(ANSIColor.CYAN + string.center(testMsg, 79) + ANSIColor.RESET)
+    print("\n" + "-" * 79)
     hostConnectionCheck()
 
     print("!! Testing Time Delta/Normalized Arrival Time" +
