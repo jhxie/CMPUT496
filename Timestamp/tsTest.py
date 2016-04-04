@@ -97,6 +97,11 @@ def main():
                         action="store_true",
                         help="Build the Timestamp Executable",
                         required=False)
+    parser.add_argument("-q",
+                        "--quiet",
+                        action="store_true",
+                        help="Disable Terminal Output",
+                        required=False)
     args = parser.parse_args()
 
     # Ensure both the build and source directories are always correctly
@@ -112,6 +117,9 @@ def main():
     # SSH_ATTRS[SSH_USER] = ""
     # SSH_ATTRS[SSH_PASSWD] = ""
     # SSH_ATTRS[SSH_HNAME] = "coldlake.cs.ualberta.ca"
+
+    if args.quiet:
+        sys.stdout = open(os.devnull, "w")
 
     # The SSHClient class has both __enter__ and __exit__ member functions
     # defined, so context manager syntax is used here to ensure the requested
@@ -237,7 +245,7 @@ def tsTestPadMsgSize(padMsgSize, numOfRuns, msgSent):
                                                    SSH_ATTRS[SSH_CMD],
                                                    SSH_ATTRS[SSH_USER],
                                                    "cold12")
-    tcCommand = "{0} tc qdisc del dev {1} root"
+    tcDelCommand = "{0} {1} qdisc del dev {2} root"
     tsCommand = "{0} ./ts -s -b {2} -c {3} | {1} ./ts -r -b {2} -c {3} "
     tsOutput = None
 
@@ -251,10 +259,12 @@ def tsTestPadMsgSize(padMsgSize, numOfRuns, msgSent):
 
     # From section 7.1.3 'Format String Syntax' of the official python doc:
     # https://docs.python.org/2/library/string.html
-    print("Padding Message Size -------- [{0} byte]".format(str(padMsgSize)))
+    print("Padding Message Size -------- [{0} byte]".format(padMsgSize))
     # To prevent from the existing classless qdisc from interfering with
-    # the padding message tests, so they are deleted.
-    cold11tcCommand = tcCommand.format(cold11Prefix, "eth0")
+    # the padding message tests, they are deleted.
+    cold11tcCommand = tcDelCommand.format(cold11Prefix,
+                                          TC_ATTRS[TC_CMD],
+                                          "eth0")
     SSH_ATTRS[SSH_CLIENT].exec_command(cold11tcCommand)
     _, tsOutput, _ = SSH_ATTRS[SSH_CLIENT].exec_command(
         tsCommand.format(cold11Prefix,    cold12Prefix,
@@ -301,6 +311,7 @@ def tsTestLoss(lossRate, numOfRuns, msgSent):
     # Thanks Nooshin for giving proper instructions to properly use 'tc' and
     # avoid a potential pitfall!
     # ifconfigCommand = "{0} '{1}' {2} {3}@{4} ifconfig"
+    tcDelCommand = "{0} {1} qdisc del dev {2} root"
     tcCommand = "{0} tc qdisc add dev {1} root " +\
         "netem limit 10000000000 loss {2}%"
     tsCommand = "{0} ./ts -s -c {2} | {1} ./ts -r -c {2} "
@@ -322,11 +333,12 @@ def tsTestLoss(lossRate, numOfRuns, msgSent):
           "Between cold11 and cold12 !!")
 
     print("Loss Rate -------- [{0} %]".format(lossRate))
+    cold11tcCommand = tcDelCommand.format(cold11Prefix,
+                                          TC_ATTRS[TC_CMD],
+                                          "eth0")
+    SSH_ATTRS[SSH_CLIENT].exec_command(cold11tcCommand)
     cold11tcCommand = tcCommand.format(cold11Prefix, "eth0", lossRate)
     SSH_ATTRS[SSH_CLIENT].exec_command(cold11tcCommand)
-    SSH_ATTRS[SSH_CLIENT].exec_command(cold11tcCommand.replace("add",
-                                                               "change",
-                                                               1))
     _, tsOutput, _ = SSH_ATTRS[SSH_CLIENT].exec_command(
         tsCommand.format(cold11Prefix, cold12Prefix, msgSent))
     tsOutput = tsOutput.read()
@@ -363,6 +375,7 @@ def tsTestRTT(RTT, numOfRuns, msgSent):
                                                    SSH_ATTRS[SSH_CMD],
                                                    SSH_ATTRS[SSH_USER],
                                                    "cold12")
+    tcDelCommand = "{0} {1} qdisc del dev {2} root"
     tcCommand = "{0} tc qdisc add dev {1} root " +\
         "netem limit 10000000000 delay {2}ms"
     tsCommand = "{0} ./ts -s -c {2} | {1} ./ts -r -c {2} "
@@ -377,11 +390,12 @@ def tsTestRTT(RTT, numOfRuns, msgSent):
           "Between cold11 and cold12 !!")
 
     print("RTT -------- [{0} ms]".format(str(RTT)))
+    cold11tcCommand = tcDelCommand.format(cold11Prefix,
+                                          TC_ATTRS[TC_CMD],
+                                          "eth0")
+    SSH_ATTRS[SSH_CLIENT].exec_command(cold11tcCommand)
     cold11tcCommand = tcCommand.format(cold11Prefix, "eth0", RTT / 2)
     SSH_ATTRS[SSH_CLIENT].exec_command(cold11tcCommand)
-    SSH_ATTRS[SSH_CLIENT].exec_command(cold11tcCommand.replace("add",
-                                                               "change",
-                                                               1))
     _, tsOutput, _ = SSH_ATTRS[SSH_CLIENT].exec_command(
         tsCommand.format(cold11Prefix, cold12Prefix, msgSent))
     tsOutput = tsOutput.read()

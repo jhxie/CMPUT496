@@ -62,5 +62,13 @@ sudo python tsMiniNetTest.py -b
 ```
 then the 3 generated plots (in *png* format) along with their reports
 (text file) will reside in the *report* folder.
+
+Similarly, the driver test script using physical clusters also supports the
+option mentioned above; in addition to that, it also supports a *quiet* command
+line flag, which can be used to suppress all output to the terminal other than
+the initial login credential prompt:
+```bash
+python tsTest.py -q
+```
 Refer to [README.md](./report/README.md) in *report* folder for the detailed
 summary.
