@@ -1,6 +1,6 @@
 # Estimating Network Offered-Load Using Timestamp
-All the 3 tests are done by running the [tsMiniNetTest.py](../tsMiniNetTest.py)
-script with the following:
+For the *mininet* based version, all the 3 tests are done by running the
+[tsMiniNetTest.py](../tsMiniNetTest.py) script with the following:
 ```bash
 sudo python tsMiniNetTest.py -b
 ```
@@ -10,6 +10,15 @@ after proper password is entered, the 3 generated reports named
 * *tsMiniNetRTTTestResult.txt*
 
 will reside in this directory.
+
+For the physical cluster version using *tc*, all 3 tests are done by running
+the [tsTest.py](../tsTest.py) script with the identical flag as shown above;
+after the required login credentials are entered, 3 reports named
+* *tsLossTestResult.txt*
+* *tsPadMsgSizeTestResult.txt*
+* *tsRTTTestResult.txt*
+
+(note there is **NO** *MiniNet* prefix) will reside in this directory as well.
 ## Overview
 The mininet topology setup is the same as the *Performance Analysis* one, which
 is a **linear** topology with 1 switch and 2 hosts:
@@ -34,10 +43,11 @@ which is 2.2.1 in the VM.
 Note all the tables listed in the following are random samples coming from the
 full 1024 messages sent by the *ts* program.
 
-A fundamental flaw in the [tsMiniNetTest.py](../tsMiniNetTest.py) test driver
-script is the lack of averaging functions: the sample results listed here may
-turn out to be outliers, so in the future the averaging functionality may be
-added to ensure the data obtained is actually "trustworthy".
+A fundamental flaw in both the [tsMiniNetTest.py](../tsMiniNetTest.py) and
+[tsTest.py](../tsTest.py) test driver scripts is the lack of averaging
+functions: the sample results listed here may turn out to be outliers,
+so in the future the averaging functionality may be added to ensure the data
+obtained is actually "trustworthy".
 
 **NOTE**
 * The unit for measuring time for all the tests below is millisecond.
@@ -47,8 +57,11 @@ instead.
 is impractical to list all of the results here.
 
 ## Padding Message Size
-Refer to the plot
-[tsMiniNetTestPadMsgSize.png](plot/tsMiniNetTestPadMsgSize.png).
+
+|Version|Plot                                                           |
+|:-----:|:--------------------------------------------------------------|
+|mininet|[tsMiniNetTestPadMsgSize.png](plot/tsMiniNetTestPadMsgSize.png)|
+|tc     |[tsTestPadMsgSize.png](plot/tsTestPadMsgSize.png)              |
 
 2 Bytes
 
@@ -124,7 +137,11 @@ is set, the normalized arrival time monotonically increases and rises above
 the 1000 miliseconds upper bound in the plot when 800 timestamps are about to
 be sent.
 ## Loss Rate
-Refer to the plot [tsMiniNetTestLoss.png](plot/tsMiniNetTestLoss.png).
+
+|Version|Plot                                               |
+|:-----:|:--------------------------------------------------|
+|mininet|[tsMiniNetTestLoss.png](plot/tsMiniNetTestLoss.png)|
+|tc     |[tsTestLoss.png](plot/tsTestLoss.png)              |
 
 0.1 %
 
@@ -192,7 +209,11 @@ listed above) with very litte fluctuations and does not seem to change relative
 to number of timestamp sent.
 
 ## RTT
-Refer to the plot [tsMiniNetTestRTT.png](plot/tsMiniNetTestRTT.png).
+
+|Version|Plot                                             |
+|:-----:|:------------------------------------------------|
+|mininet|[tsMiniNetTestRTT.png](plot/tsMiniNetTestRTT.png)|
+|tc     |[tsTestRTT.png](plot/tsTestRTT.png)              |
 
 10 Miliseconds
 
